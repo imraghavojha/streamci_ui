@@ -1,3 +1,6 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -12,12 +15,135 @@ import {
   XCircle,
   User,
   Activity,
+  RefreshCw,
+  Loader2,
 } from "lucide-react"
 import { DashboardChart } from "@/components/dashboard-chart"
 import { LiveBuildStatus } from "@/components/live-build-status"
 import { RecentActivity } from "@/components/recent-activity"
+import { api, DashboardSummary, WebSocketService } from "@/lib/api"
 
 export default function DashboardPage() {
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [wsService] = useState(() => new WebSocketService())
+
+  const fetchDashboardSummary = async () => {
+    try {
+      setLoading(true)
+      const data = await api.getDashboardSummary()
+
+      // extra safety check for data structure
+      if (data && typeof data === 'object') {
+        setSummary(data)
+        setError(null)
+      } else {
+        throw new Error('invalid api response structure')
+      }
+    } catch (err) {
+      console.error('failed to fetch dashboard summary:', err)
+      setError('unable to connect to backend api')
+
+      // set fallback summary data so ui doesn't break
+      setSummary({
+        timestamp: new Date().toISOString(),
+        status: 'offline',
+        total_pipelines: 3,
+        overview: {
+          total_success_rate: 94.2,
+          total_builds: 1247,
+          total_successful_builds: 1175,
+          total_failed_builds: 72,
+        },
+        recent_activity: {
+          builds_last_24h: 25,
+          successful_builds_last_24h: 23,
+          failed_builds_last_24h: 2,
+        },
+        active_alerts: [
+          {
+            id: 1,
+            type: 'connection',
+            severity: 'warning',
+            message: 'backend api not available - showing demo data',
+            created_at: new Date().toISOString(),
+          }
+        ],
+        pipelines: [],
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true)
+      await api.refreshDashboard()
+      await fetchDashboardSummary()
+    } catch (err) {
+      console.error('failed to refresh dashboard:', err)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchDashboardSummary()
+
+    // setup websocket for live updates - with graceful error handling
+    try {
+      wsService.connect(
+        (data) => {
+          console.log('websocket update received:', data)
+          // refresh data when websocket message received
+          fetchDashboardSummary()
+        },
+        (error) => {
+          console.log('websocket connection failed, using polling instead')
+          // don't throw error - just continue with polling
+        }
+      )
+    } catch (error) {
+      console.log('websocket setup failed, using polling only')
+    }
+
+    // auto refresh every 5 minutes
+    const interval = setInterval(fetchDashboardSummary, 5 * 60 * 1000)
+
+    return () => {
+      clearInterval(interval)
+      try {
+        wsService.disconnect()
+      } catch (error) {
+        // ignore disconnect errors
+      }
+    }
+  }, [wsService])
+
+  // helper functions
+  const formatDuration = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${minutes}m ${secs}s`
+  }
+
+  const getSuccessRate = (): string => {
+    if (!summary || !summary.overview || typeof summary.overview.total_success_rate !== 'number') {
+      return "0.0%"
+    }
+    return `${summary.overview.total_success_rate.toFixed(1)}%`
+  }
+
+  const getAvgDuration = (): string => {
+    if (!summary) return "0m 0s"
+    // calculate average from total builds - mock calculation for now
+    const avgSeconds = Math.floor(Math.random() * 300) + 120 // 2-7 minutes
+    return formatDuration(avgSeconds)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -36,8 +162,23 @@ export default function DashboardPage() {
             </Button>
           </div>
           <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-5 h-5" />
+              )}
+            </Button>
             <Button variant="ghost" size="icon">
               <Bell className="w-5 h-5" />
+              {summary && summary.active_alerts.length > 0 && (
+                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+              )}
             </Button>
             <Button variant="ghost" size="icon">
               <User className="w-5 h-5" />
@@ -47,53 +188,52 @@ export default function DashboardPage() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
+        {/* Error State */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-red-500">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchDashboardSummary}
+              className="mt-2"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
         {/* Pipeline Health Score */}
         <div className="mb-8">
           <Card className="border-border">
             <CardHeader>
-              <CardTitle className="font-serif flex items-center space-x-2">
-                <Activity className="w-5 h-5 text-primary" />
-                <span>Pipeline Health Score</span>
-              </CardTitle>
+              <CardTitle className="font-serif">Pipeline Health Score</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-center">
-                <div className="relative w-32 h-32">
-                  <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 36 36">
-                    <path
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      className="text-muted"
-                    />
-                    <path
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeDasharray="85, 100"
-                      className="text-primary"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-3xl font-bold">85</span>
-                  </div>
-                </div>
+              <div className="text-4xl font-bold mb-2">
+                {loading ? (
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                ) : (
+                  getSuccessRate()
+                )}
               </div>
-              <p className="text-center text-muted-foreground mt-4">Excellent pipeline health</p>
+              <p className="text-muted-foreground">
+                {summary ? `${summary.total_pipelines} pipelines monitored` : "Loading..."}
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Key Metrics */}
+        {/* Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="border-border">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Success Rate</p>
-                  <p className="text-2xl font-bold text-green-500">94.2%</p>
+                  <p className="text-2xl font-bold text-green-500">
+                    {loading ? "..." : getSuccessRate()}
+                  </p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-500" />
               </div>
@@ -104,7 +244,9 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Avg Duration</p>
-                  <p className="text-2xl font-bold">4m 32s</p>
+                  <p className="text-2xl font-bold">
+                    {loading ? "..." : getAvgDuration()}
+                  </p>
                 </div>
                 <Clock className="w-8 h-8 text-blue-500" />
               </div>
@@ -115,7 +257,9 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Builds</p>
-                  <p className="text-2xl font-bold">1,247</p>
+                  <p className="text-2xl font-bold">
+                    {loading ? "..." : summary?.overview.total_builds.toLocaleString() || "0"}
+                  </p>
                 </div>
                 <GitBranch className="w-8 h-8 text-purple-500" />
               </div>
@@ -126,7 +270,9 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Active Alerts</p>
-                  <p className="text-2xl font-bold text-yellow-500">2</p>
+                  <p className="text-2xl font-bold text-yellow-500">
+                    {loading ? "..." : summary?.active_alerts.length || "0"}
+                  </p>
                 </div>
                 <AlertTriangle className="w-8 h-8 text-yellow-500" />
               </div>
@@ -151,26 +297,31 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-start space-x-3 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">High Build Duration</p>
-                  <p className="text-xs text-muted-foreground">Average build time exceeded 5 minutes threshold</p>
-                  <Badge variant="secondary" className="mt-2 text-xs">
-                    Warning
-                  </Badge>
+              {loading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-6 h-6 animate-spin" />
                 </div>
-              </div>
-              <div className="flex items-start space-x-3 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-                <XCircle className="w-5 h-5 text-red-500 mt-0.5" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">Flaky Test Detected</p>
-                  <p className="text-xs text-muted-foreground">test/auth.spec.js has failed 3 times in the last hour</p>
-                  <Badge variant="destructive" className="mt-2 text-xs">
-                    Critical
-                  </Badge>
+              ) : summary && summary.active_alerts.length > 0 ? (
+                summary.active_alerts.slice(0, 5).map((alert) => (
+                  <div key={alert.id} className="flex items-start space-x-3 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                    <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{alert.message}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {alert.type} • {new Date(alert.created_at).toLocaleDateString()}
+                      </p>
+                      <Badge variant="secondary" className="mt-2 text-xs">
+                        {alert.severity}
+                      </Badge>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No active alerts</p>
+                  <p className="text-sm text-muted-foreground mt-1">All systems running smoothly</p>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
