@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { ArrowRight, BarChart3, Bell, Zap, Github, Star, Users, TrendingUp } from "lucide-react"
 import Link from "next/link"
+import { SignedIn, SignedOut } from "@clerk/nextjs"
 
 export default function LandingPage() {
   return (
@@ -16,12 +17,25 @@ export default function LandingPage() {
             </div>
             <span className="text-xl font-serif font-bold">StreamCI</span>
           </div>
-          <Link href="/login">
-            <Button className="flex items-center space-x-2">
-              <Github className="w-4 h-4" />
-              <span>Login with GitHub</span>
-            </Button>
-          </Link>
+
+          {/* conditional login/dashboard button */}
+          <SignedOut>
+            <Link href="/sign-in">
+              <Button className="flex items-center space-x-2">
+                <Github className="w-4 h-4" />
+                <span>Login with GitHub</span>
+              </Button>
+            </Link>
+          </SignedOut>
+
+          <SignedIn>
+            <Link href="/dashboard">
+              <Button className="flex items-center space-x-2">
+                <BarChart3 className="w-4 h-4" />
+                <span>Go to Dashboard</span>
+              </Button>
+            </Link>
+          </SignedIn>
         </div>
       </header>
 
@@ -38,55 +52,79 @@ export default function LandingPage() {
             StreamCI provides predictive insights, intelligent alerting, and in-depth performance metrics for your CI/CD
             pipelines.
           </p>
-          <Link href="/login">
-            <Button size="lg" className="text-lg px-8 py-6 flex items-center space-x-2 mx-auto">
-              <span>Get Started for Free</span>
-              <ArrowRight className="w-5 h-5" />
+
+          {/* CTA buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <SignedOut>
+              <Link href="/sign-in">
+                <Button size="lg" className="flex items-center space-x-2">
+                  <Github className="w-5 h-5" />
+                  <span>Get Started with GitHub</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </SignedOut>
+
+            <SignedIn>
+              <Link href="/dashboard">
+                <Button size="lg" className="flex items-center space-x-2">
+                  <BarChart3 className="w-5 h-5" />
+                  <span>View Your Dashboard</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </SignedIn>
+
+            <Button variant="outline" size="lg">
+              View Demo
             </Button>
-          </Link>
+          </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 bg-muted/30">
+      <section className="py-16 px-4 bg-muted/30">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-serif font-bold mb-4">Powerful Features</h2>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-serif font-bold mb-4">Everything you need to optimize your pipelines</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Everything you need to monitor, analyze, and optimize your CI/CD pipelines
+              From real-time monitoring to predictive analytics, StreamCI gives you the insights you need to build better software faster.
             </p>
           </div>
+
           <div className="grid md:grid-cols-3 gap-8">
             <Card className="border-border">
               <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <TrendingUp className="w-6 h-6 text-primary" />
+                <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <TrendingUp className="w-5 h-5 text-blue-500" />
                 </div>
-                <CardTitle className="font-serif">Real-Time Analytics</CardTitle>
+                <CardTitle className="font-serif">Predictive Analytics</CardTitle>
                 <CardDescription>
-                  Monitor your pipelines in real-time with live data streaming and WebSocket updates.
+                  AI-powered insights to predict build failures before they happen and optimize your development workflow.
                 </CardDescription>
               </CardHeader>
             </Card>
+
             <Card className="border-border">
               <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <Zap className="w-6 h-6 text-primary" />
+                <div className="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <Bell className="w-5 h-5 text-green-500" />
                 </div>
-                <CardTitle className="font-serif">Predictive Insights</CardTitle>
+                <CardTitle className="font-serif">Smart Alerts</CardTitle>
                 <CardDescription>
-                  Leverage time-series algorithms to forecast queue depth and predict build success rates.
+                  Get notified about critical issues with intelligent alerting that learns from your patterns and reduces noise.
                 </CardDescription>
               </CardHeader>
             </Card>
+
             <Card className="border-border">
               <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <Bell className="w-6 h-6 text-primary" />
+                <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <Zap className="w-5 h-5 text-purple-500" />
                 </div>
-                <CardTitle className="font-serif">Intelligent Alerting</CardTitle>
+                <CardTitle className="font-serif">Real-time Monitoring</CardTitle>
                 <CardDescription>
-                  Get proactive alerts with configurable thresholds for success rates, build durations, and more.
+                  Monitor your CI/CD pipelines in real-time with live dashboards, performance metrics, and health scores.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -94,58 +132,44 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section className="py-20 px-4">
+      {/* Stats Section */}
+      <section className="py-16 px-4">
         <div className="container mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid md:grid-cols-3 gap-8 text-center">
             <div>
-              <h2 className="text-3xl font-serif font-bold mb-6">Transform Your Development Workflow</h2>
-              <ul className="space-y-4">
-                <li className="flex items-start space-x-3">
-                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-primary-foreground text-sm">✓</span>
-                  </div>
-                  <span>Reduce build failures and downtime with predictive analytics</span>
-                </li>
-                <li className="flex items-start space-x-3">
-                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-primary-foreground text-sm">✓</span>
-                  </div>
-                  <span>Optimize pipeline performance and resource usage</span>
-                </li>
-                <li className="flex items-start space-x-3">
-                  <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-primary-foreground text-sm">✓</span>
-                  </div>
-                  <span>Get actionable insights to improve your development workflow</span>
-                </li>
-              </ul>
+              <div className="text-4xl font-bold mb-2">99.9%</div>
+              <div className="text-muted-foreground">Uptime Guarantee</div>
             </div>
-            <div className="bg-card rounded-lg p-8 border border-border">
-              <img src="/cicd-dashboard.png" alt="StreamCI Dashboard Preview" className="w-full rounded-lg" />
+            <div>
+              <div className="text-4xl font-bold mb-2">50%</div>
+              <div className="text-muted-foreground">Faster Build Times</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold mb-2">85%</div>
+              <div className="text-muted-foreground">Fewer Failed Builds</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 px-4 bg-muted/30">
+      {/* Testimonials */}
+      <section className="py-16 px-4 bg-muted/30">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-serif font-bold mb-4">Trusted by Development Teams</h2>
-            <p className="text-muted-foreground">See what teams are saying about StreamCI</p>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-serif font-bold mb-4">Trusted by development teams worldwide</h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             <Card className="border-border">
               <CardContent className="pt-6">
-                <div className="flex items-center mb-4">
+                <div className="flex items-center space-x-1 mb-4">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-primary text-primary" />
+                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                   ))}
                 </div>
-                <p className="text-sm mb-4">
-                  "StreamCI has completely transformed how we monitor our CI/CD pipelines. The predictive insights have
-                  helped us prevent countless build failures."
+                <p className="text-muted-foreground mb-4">
+                  "StreamCI helped us reduce our build failure rate by 60% and identify bottlenecks we never knew existed.
+                  The UI is intuitive and the insights are actionable."
                 </p>
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
@@ -153,43 +177,22 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <p className="font-medium text-sm">Sarah Chen</p>
-                    <p className="text-xs text-muted-foreground">DevOps Lead, TechCorp</p>
+                    <p className="text-xs text-muted-foreground">Lead Engineer, TechCorp</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
             <Card className="border-border">
               <CardContent className="pt-6">
-                <div className="flex items-center mb-4">
+                <div className="flex items-center space-x-1 mb-4">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-primary text-primary" />
+                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                   ))}
                 </div>
-                <p className="text-sm mb-4">
-                  "The real-time analytics and intelligent alerting have saved us hours of debugging time. Highly
-                  recommended for any serious development team."
-                </p>
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
-                    <Users className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Mike Rodriguez</p>
-                    <p className="text-xs text-muted-foreground">Engineering Manager, StartupXYZ</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-border">
-              <CardContent className="pt-6">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-primary text-primary" />
-                  ))}
-                </div>
-                <p className="text-sm mb-4">
-                  "StreamCI's dashboard gives us unprecedented visibility into our build processes. The UI is intuitive
-                  and the insights are actionable."
+                <p className="text-muted-foreground mb-4">
+                  "The predictive analytics are game-changing. We can now prevent issues before they impact our deployment pipeline.
+                  The UI is intuitive and the insights are actionable."
                 </p>
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">

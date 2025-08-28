@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useUser, UserButton } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -13,8 +14,6 @@ import {
   TrendingUp,
   AlertTriangle,
   XCircle,
-  User,
-  Activity,
   RefreshCw,
   Loader2,
 } from "lucide-react"
@@ -24,6 +23,7 @@ import { RecentActivity } from "@/components/recent-activity"
 import { api, DashboardSummary, WebSocketService } from "@/lib/api"
 
 export default function DashboardPage() {
+  const { user, isLoaded } = useUser()
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -144,9 +144,24 @@ export default function DashboardPage() {
     return formatDuration(avgSeconds)
   }
 
+  // show loading while user data loads
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    )
+  }
+
+  // redirect to sign-in if not authenticated (this should be handled by middleware, but just in case)
+  if (!user) {
+    window.location.href = '/sign-in'
+    return null
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header with User Authentication */}
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -161,7 +176,15 @@ export default function DashboardPage() {
               <ChevronDown className="w-4 h-4" />
             </Button>
           </div>
+
+          {/* User info and controls */}
           <div className="flex items-center space-x-4">
+            {/* welcome message */}
+            <div className="hidden md:block text-sm text-muted-foreground">
+              Welcome back, {user.firstName || user.username || 'Developer'}
+            </div>
+
+            {/* refresh button */}
             <Button
               variant="ghost"
               size="icon"
@@ -174,15 +197,24 @@ export default function DashboardPage() {
                 <RefreshCw className="w-5 h-5" />
               )}
             </Button>
+
+            {/* notifications */}
             <Button variant="ghost" size="icon">
               <Bell className="w-5 h-5" />
               {summary && summary.active_alerts.length > 0 && (
                 <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
               )}
             </Button>
-            <Button variant="ghost" size="icon">
-              <User className="w-5 h-5" />
-            </Button>
+
+            {/* user button from clerk */}
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8"
+                }
+              }}
+              afterSignOutUrl="/"
+            />
           </div>
         </div>
       </header>
