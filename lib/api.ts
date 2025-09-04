@@ -143,6 +143,18 @@ export const api = {
     // refresh dashboard - trigger websocket update
     async refreshDashboard(): Promise<void> {
         await fetch(`${API_URL}/api/dashboard/refresh`, { method: 'POST' })
+    },
+    // health check for deployment
+    async checkHealth(): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_URL}/health`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            })
+            return response.ok
+        } catch {
+            return false
+        }
     }
 }
 
