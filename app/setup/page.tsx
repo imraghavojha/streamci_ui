@@ -77,8 +77,8 @@ export default function SetupPage() {
             if (data.success) {
                 if (data.valid) {
                     setStatus("valid")
-                    setMessage("token is valid! redirecting to dashboard...")
-                    setTimeout(() => router.push("/dashboard"), 2000)
+                    setMessage("token is valid! redirecting to repository selection...")
+                    setTimeout(() => router.push("/repositories"), 2000)
                 } else {
                     setStatus("invalid")
                     setMessage("token is invalid - check scopes and permissions")
@@ -142,23 +142,26 @@ export default function SetupPage() {
                                         <span>GitHub Actions access</span>
                                     </div>
                                 </div>
-                                <p>4. Copy the token and paste it below</p>
+                                <p>4. Copy the generated token</p>
+                                <a
+                                    href="https://github.com/settings/personal-access-tokens/new"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                                >
+                                    Open GitHub Token Settings <ExternalLink className="w-3 h-3" />
+                                </a>
                             </div>
-
-                            <a
-                                href="https://github.com/settings/tokens/new"
-                                target="_blank"
-                                className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
-                            >
-                                Open GitHub Token Page <ExternalLink className="w-4 h-4" />
-                            </a>
                         </div>
 
                         {/* token input */}
                         <div className="space-y-3">
-                            <label className="text-sm font-medium">GitHub Personal Access Token</label>
+                            <label htmlFor="token" className="text-sm font-medium">
+                                GitHub Personal Access Token
+                            </label>
                             <div className="relative">
                                 <Input
+                                    id="token"
                                     type={tokenVisible ? "text" : "password"}
                                     value={token}
                                     onChange={(e) => setToken(e.target.value)}
@@ -168,8 +171,8 @@ export default function SetupPage() {
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    size="sm"
-                                    className="absolute right-1 top-1 h-8 w-8 p-0"
+                                    size="icon"
+                                    className="absolute right-0 top-0 h-full px-3"
                                     onClick={() => setTokenVisible(!tokenVisible)}
                                 >
                                     {tokenVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -178,7 +181,7 @@ export default function SetupPage() {
                         </div>
 
                         {/* status message */}
-                        {status !== "idle" && (
+                        {message && (
                             <div className={`flex items-center gap-2 text-sm ${getStatusColor()}`}>
                                 {getStatusIcon()}
                                 <span>{message}</span>
@@ -188,7 +191,7 @@ export default function SetupPage() {
                         {/* save button */}
                         <Button
                             onClick={saveToken}
-                            disabled={!token.trim() || loading || validating}
+                            disabled={loading || validating || !token.trim()}
                             className="w-full"
                         >
                             {loading || validating ? (
