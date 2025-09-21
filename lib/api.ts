@@ -70,6 +70,31 @@ export interface PipelineData {
     last_build_status: string
 }
 
+// new analytics + trends data
+export interface TrendsData {
+    success_rate_trends: Array<{
+        date: string
+        success_rate: number
+        total_builds: number
+        successful_builds: number
+    }>
+    failure_patterns: Array<{
+        repository: string
+        failure_count: number
+        total_builds: number
+        failure_rate: number
+    }>
+    build_stats: {
+        total_builds: number
+        successful_builds: number
+        failed_builds: number
+        running_builds: number
+        builds_analyzed: number
+    }
+    total_workflows_analyzed: number
+    timestamp: string
+}
+
 // main api functions
 export const api = {
     // real-time dashboard data from selected repositories
@@ -108,7 +133,6 @@ export const api = {
         const totalBuilds = workflows.length
         const successfulBuilds = workflows.filter(w => w.conclusion === 'success').length
         const failedBuilds = workflows.filter(w => w.conclusion === 'failure').length
-        const runningBuilds = workflows.filter(w => w.status === 'in_progress' || w.status === 'queued').length
 
         const successRate = totalBuilds > 0 ? (successfulBuilds / totalBuilds) * 100 : 0
 
@@ -200,27 +224,18 @@ export const api = {
         return await response.json()
     },
 
-    async getTrends(days: number = 7): Promise<TrendData[]> {
-        const response = await fetch(`${API_URL}/api/trends?days=${days}`)
-        if (!response.ok) throw new Error('failed to fetch trends')
-        const data = await response.json()
-
-        if (data.success_rate_trend) {
-            return data.success_rate_trend.map((point: any) => ({
-                date: new Date(point.timestamp).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                }),
-                successRate: Math.round(point.success_rate)
-            }))
+    // 🔥 new: get analytics and trends data
+    async getTrends(clerkUserId: string): Promise<TrendsData> {
+        try {
+            const response = await fetch(`${API_URL}/api/analytics/trends/${clerkUserId}`)
+            if (!response.ok) {
+                throw new Error(`trends request failed: ${response.status}`)
+            }
+            return await response.json()
+        } catch (err) {
+            console.error('failed to fetch trends:', err)
+            throw err
         }
-
-        const summary = await this.getDashboardSummary()
-        const baseRate = summary.overview.total_success_rate
-        return Array.from({ length: 7 }, (_, i) => ({
-            date: `Jan ${i + 1}`,
-            successRate: Math.round(baseRate + (Math.random() - 0.5) * 10)
-        }))
     },
 
     async refreshDashboard(): Promise<void> {

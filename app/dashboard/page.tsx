@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { AnalyticsDashboard } from "@/components/analytics-dashboard"
 import {
   BarChart3,
   Bell,
@@ -396,7 +397,15 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             )}
+            {/* Analytics Section */}
+            {user?.id && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">Analytics & Trends</h2>
+                <AnalyticsDashboard clerkUserId={user.id} />
+              </div>
+            )}
           </div>
+
         )}
       </div>
     </div>
