@@ -1,4 +1,3 @@
-// api service for streamci backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 // types based on backend api responses
@@ -70,7 +69,7 @@ export interface PipelineData {
     last_build_status: string
 }
 
-// new analytics + trends data
+// analytics + trends data
 export interface TrendsData {
     success_rate_trends: Array<{
         date: string
@@ -134,7 +133,7 @@ export const api = {
         const successfulBuilds = workflows.filter(w => w.conclusion === 'success').length
         const failedBuilds = workflows.filter(w => w.conclusion === 'failure').length
 
-        const successRate = totalBuilds > 0 ? (successfulBuilds / totalBuilds) * 100 : 0
+        const successRate = totalBuilds > 0 ? Math.round((successfulBuilds / totalBuilds) * 100) : 0
 
         // group workflows by repository to create "pipelines"
         const repoGroups = workflows.reduce((acc, workflow) => {
@@ -170,7 +169,7 @@ export const api = {
                 total_failed_builds: failedBuilds,
             },
             recent_activity: {
-                builds_last_24h: totalBuilds, // simplification for now
+                builds_last_24h: totalBuilds,
                 successful_builds_last_24h: successfulBuilds,
                 failed_builds_last_24h: failedBuilds,
             },
@@ -185,7 +184,6 @@ export const api = {
         }
     },
 
-    // legacy mock api functions (keeping for fallback)
     async getDashboardSummary(): Promise<DashboardSummary> {
         try {
             const response = await fetch(`${API_URL}/api/dashboard/summary`)
@@ -224,7 +222,12 @@ export const api = {
         return await response.json()
     },
 
-    // 🔥 new: get analytics and trends data
+    // MINIMAL FIX: add missing function
+    async getLiveBuilds(): Promise<LiveBuild[]> {
+        const response = await this.getLiveBuildStatus()
+        return response.running_builds || []
+    },
+
     async getTrends(clerkUserId: string): Promise<TrendsData> {
         try {
             const response = await fetch(`${API_URL}/api/analytics/trends/${clerkUserId}`)
@@ -255,7 +258,7 @@ export const api = {
     }
 }
 
-// import the enhanced websocket service
+// import the websocket service
 export { WebSocketService } from './websocket'
 
 // add string hashcode for pipeline id generation

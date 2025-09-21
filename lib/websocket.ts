@@ -1,113 +1,156 @@
-// enhanced websocket service using stomp/sockjs for backend compatibility
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 
+export interface WebSocketMessage {
+    type: string
+    timestamp: string
+    data?: any
+    pipeline_id?: number
+}
+
 export class WebSocketService {
-    private stompClient: Client | null = null
-    private isConnected = false
+    private client: Client | null = null
+    private connected = false
     private reconnectAttempts = 0
     private maxReconnectAttempts = 5
+    private reconnectDelay = 2000
+    private onMessageCallback?: (message: WebSocketMessage) => void
+    private onErrorCallback?: (error: any) => void
 
-    connect(onMessage: (data: any) => void, onError?: (error: any) => void) {
+    constructor() {
+        // setup happens in connect()
+    }
+
+    connect(onMessage?: (message: WebSocketMessage) => void, onError?: (error: any) => void): void {
+        if (this.connected) {
+            console.log('websocket already connected')
+            return
+        }
+
+        this.onMessageCallback = onMessage
+        this.onErrorCallback = onError
+
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+
         try {
-            const wsUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-
-            this.stompClient = new Client({
-                webSocketFactory: () => new SockJS(`${wsUrl}/ws/dashboard`),
+            this.client = new Client({
+                webSocketFactory: () => new SockJS(`${API_URL}/ws/dashboard`),
+                connectHeaders: {},
                 debug: (str) => {
-                    if (process.env.NODE_ENV === 'development') {
-                        console.log('stomp debug:', str)
-                    }
+                    console.log('websocket debug:', str)
                 },
-                reconnectDelay: 2000,
+                reconnectDelay: this.reconnectDelay,
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,
             })
 
-            this.stompClient.onConnect = () => {
-                console.log('websocket connected via stomp')
-                this.isConnected = true
+            this.client.onConnect = (frame) => {
+                console.log('✅ websocket connected successfully')
+                this.connected = true
                 this.reconnectAttempts = 0
 
-                // subscribe to dashboard updates
-                this.stompClient?.subscribe('/topic/dashboard', (message) => {
+                this.client?.subscribe('/topic/dashboard', (message) => {
                     try {
                         const data = JSON.parse(message.body)
-                        onMessage(data)
-                    } catch (e) {
-                        console.error('failed to parse websocket message:', e)
+                        console.log('📡 websocket message received:', data.type)
+
+                        if (this.onMessageCallback) {
+                            this.onMessageCallback(data)
+                        }
+                    } catch (error) {
+                        console.error('failed to parse websocket message:', error)
                     }
                 })
 
-                // subscribe to build updates
-                this.stompClient?.subscribe('/topic/builds', (message) => {
-                    try {
-                        const data = JSON.parse(message.body)
-                        onMessage(data)
-                    } catch (e) {
-                        console.error('failed to parse build update:', e)
-                    }
+                this.client?.publish({
+                    destination: '/app/dashboard/subscribe',
+                    body: JSON.stringify({ action: 'subscribe' })
                 })
             }
 
-            this.stompClient.onDisconnect = () => {
-                console.log('websocket disconnected')
-                this.isConnected = false
-                // don't auto-reconnect to avoid error spam
+            this.client.onStompError = (frame) => {
+                console.error('❌ websocket stomp error:', frame.headers['message'])
+                this.connected = false
+
+                if (this.onErrorCallback) {
+                    this.onErrorCallback(frame.headers['message'])
+                }
+
+                this.handleReconnect()
             }
 
-            this.stompClient.onStompError = (frame) => {
-                console.log('stomp connection failed - continuing without websocket')
-                onError?.(frame)
-                // don't reconnect automatically
+            this.client.onWebSocketError = (error) => {
+                console.error('❌ websocket error:', error)
+                this.connected = false
+
+                if (this.onErrorCallback) {
+                    this.onErrorCallback(error)
+                }
             }
 
-            this.stompClient.onWebSocketError = (error) => {
-                console.log('websocket connection failed - continuing without websocket')
-                onError?.(error)
-                // don't reconnect automatically  
+            this.client.onDisconnect = () => {
+                console.log('📡 websocket disconnected')
+                this.connected = false
             }
 
-            this.stompClient.activate()
+            this.client.activate()
+
         } catch (error) {
-            console.log('websocket setup failed - using polling only')
-            onError?.(error)
-            this.fallbackPolling(onMessage)
+            console.error('failed to setup websocket:', error)
+            if (this.onErrorCallback) {
+                this.onErrorCallback(error)
+            }
         }
     }
 
-    private reconnect(onMessage: (data: any) => void, onError?: (error: any) => void) {
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.reconnectAttempts++
-            console.log(`reconnecting websocket attempt ${this.reconnectAttempts}`)
-            setTimeout(() => this.connect(onMessage, onError), 2000 * this.reconnectAttempts)
-        } else {
-            console.log('max reconnect attempts reached, falling back to polling')
-            this.fallbackPolling(onMessage)
+    disconnect(): void {
+        if (this.client && this.connected) {
+            console.log('disconnecting websocket...')
+            this.client.deactivate()
+            this.connected = false
         }
     }
 
-    private fallbackPolling(onMessage: (data: any) => void) {
-        // fallback to polling every 30 seconds if websocket fails
-        console.log('using polling fallback')
-        setInterval(() => {
-            onMessage({ type: 'polling_update', timestamp: Date.now() })
-        }, 30000)
+    private handleReconnect(): void {
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.error('max websocket reconnect attempts reached')
+            return
+        }
+
+        this.reconnectAttempts++
+        const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
+
+        console.log(`attempting websocket reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`)
+
+        setTimeout(() => {
+            if (!this.connected) {
+                this.connect(this.onMessageCallback, this.onErrorCallback)
+            }
+        }, delay)
     }
 
-    disconnect() {
-        if (this.stompClient && this.isConnected) {
-            this.stompClient.deactivate()
-            this.stompClient = null
-            this.isConnected = false
+    sendPing(): void {
+        if (this.client && this.connected) {
+            this.client.publish({
+                destination: '/app/dashboard/ping',
+                body: JSON.stringify({ timestamp: new Date().toISOString() })
+            })
         }
     }
 
-    sendMessage(destination: string, body: any) {
-        if (this.stompClient && this.isConnected) {
-            this.stompClient.publish({
-                destination,
-                body: JSON.stringify(body)
+    isConnected(): boolean {
+        return this.connected
+    }
+
+    subscribeToPipeline(pipelineId: number, callback: (message: WebSocketMessage) => void): void {
+        if (this.client && this.connected) {
+            this.client.subscribe(`/topic/pipeline/${pipelineId}`, (message) => {
+                try {
+                    const data = JSON.parse(message.body)
+                    callback(data)
+                } catch (error) {
+                    console.error('failed to parse pipeline message:', error)
+                }
             })
         }
     }
