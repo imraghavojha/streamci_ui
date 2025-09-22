@@ -1,0 +1,19 @@
+{
+    "framework": "nextjs",
+    "buildCommand": "npm run build",
+    "installCommand": "npm install",
+    "outputDirectory": ".next",
+    "cleanUrls": true,
+    "functions": {
+        "app/**/*.tsx": {
+            "maxDuration": 30
+        }
+    },
+    "redirects": [
+        {
+            "source": "/",
+            "destination": "/dashboard",
+            "permanent": false
+        }
+    ]
+}
