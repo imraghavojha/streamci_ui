@@ -1,5 +1,5 @@
 "use client"
-
+import { ApiConnectivityTester } from "@/components/api-connectivity-tester"
 import { useState, useEffect } from "react"
 import { useUser, UserButton } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
@@ -20,11 +20,104 @@ import {
   Loader2,
   CheckCircle,
   Activity,
+  Bug,
+  Zap
 } from "lucide-react"
 import { DashboardChart } from "@/components/dashboard-chart"
 import { LiveBuildStatus } from "@/components/live-build-status"
 import { RecentActivity } from "@/components/recent-activity"
 import { api, DashboardSummary, RealtimeDashboard, WebSocketService } from "@/lib/api"
+
+// DEBUG COMPONENT - Shows all debugging info
+function DebugPanel({
+  user,
+  summary,
+  realtimeData,
+  error,
+  loading,
+  lastUpdated,
+  diagnostics
+}: any) {
+  const [showDebug, setShowDebug] = useState(false)
+
+  return (
+    <Card className="mb-4 border-yellow-200 bg-yellow-50">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Bug className="w-4 h-4" />
+            Debug Information
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDebug(!showDebug)}
+          >
+            {showDebug ? 'Hide' : 'Show'} Debug
+          </Button>
+        </div>
+      </CardHeader>
+      {showDebug && (
+        <CardContent className="text-xs space-y-4">
+          {/* Environment Check */}
+          <div>
+            <h4 className="font-semibold text-green-700">Environment Variables:</h4>
+            <div className="bg-gray-100 p-2 rounded mt-1 font-mono">
+              <div>NEXT_PUBLIC_API_URL: {process.env.NEXT_PUBLIC_API_URL || "❌ NOT SET"}</div>
+              <div>NODE_ENV: {process.env.NODE_ENV}</div>
+              <div>VERCEL_ENV: {process.env.VERCEL_ENV || "not in vercel"}</div>
+            </div>
+          </div>
+
+          {/* User State */}
+          <div>
+            <h4 className="font-semibold text-blue-700">User State:</h4>
+            <div className="bg-gray-100 p-2 rounded mt-1">
+              <div>User ID: {user?.id || "❌ NO USER"}</div>
+              <div>User loaded: {user ? "✅" : "❌"}</div>
+              <div>Email: {user?.primaryEmailAddress?.emailAddress || "N/A"}</div>
+            </div>
+          </div>
+
+          {/* API Status */}
+          <div>
+            <h4 className="font-semibold text-purple-700">API Status:</h4>
+            <div className="bg-gray-100 p-2 rounded mt-1">
+              <div>Loading: {loading ? "✅ YES" : "❌ NO"}</div>
+              <div>Error: {error ? `🚨 ${error}` : "✅ NONE"}</div>
+              <div>Last Updated: {lastUpdated || "❌ NEVER"}</div>
+              <div>Summary exists: {summary ? "✅ YES" : "❌ NO"}</div>
+              <div>Realtime data exists: {realtimeData ? "✅ YES" : "❌ NO"}</div>
+            </div>
+          </div>
+
+          {/* Data Preview */}
+          {summary && (
+            <div>
+              <h4 className="font-semibold text-indigo-700">Summary Data:</h4>
+              <div className="bg-gray-100 p-2 rounded mt-1 max-h-32 overflow-auto">
+                <pre className="text-xs">{JSON.stringify(summary, null, 2)}</pre>
+              </div>
+            </div>
+          )}
+
+          {diagnostics && (
+            <div>
+              <h4 className="font-semibold text-red-700">Diagnostics Results:</h4>
+              <div className="bg-gray-100 p-2 rounded mt-1">
+                {Object.entries(diagnostics).map(([test, result]) => (
+                  <div key={test}>
+                    {test}: {result ? "✅ PASS" : "❌ FAIL"}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  )
+}
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser()
@@ -35,31 +128,72 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<string>("")
   const [wsService] = useState(() => new WebSocketService())
+  const [diagnostics, setDiagnostics] = useState<any>(null)
+
+  // DEBUG: Log all state changes
+  useEffect(() => {
+    console.log("🎯 DASHBOARD STATE CHANGE:")
+    console.log("- User loaded:", isLoaded, "User ID:", user?.id)
+    console.log("- Loading:", loading)
+    console.log("- Error:", error)
+    console.log("- Summary exists:", !!summary)
+    console.log("- Realtime data exists:", !!realtimeData)
+    console.log("- Last updated:", lastUpdated)
+  }, [user, isLoaded, loading, error, summary, realtimeData, lastUpdated])
+
+  const runDiagnostics = async () => {
+    console.log("🔍 Starting comprehensive diagnostics...")
+    try {
+      const results = await api.runDiagnostics()
+      setDiagnostics(results)
+      console.log("🔍 Diagnostics completed:", results)
+    } catch (e) {
+      console.error("🔍 Diagnostics failed:", e)
+      setDiagnostics({ error: "Diagnostics failed to run" })
+    }
+  }
 
   const fetchRealtimeDashboard = async (force = false) => {
-    if (!user?.id) return
+    console.log(`🔄 fetchRealtimeDashboard called - force: ${force}, user.id: ${user?.id}`)
+
+    if (!user?.id) {
+      console.warn("🚨 Cannot fetch dashboard - no user ID")
+      return
+    }
 
     try {
+      console.log("📊 Setting loading state and clearing error...")
       setLoading(!force) // don't show loading spinner for force refresh
       setError(null)
 
+      console.log("📡 Making API call...")
       // if force refresh, use refresh endpoint to clear cache
       const data = force
         ? await api.refreshRealtimeDashboard(user.id)
         : await api.getRealtimeDashboard(user.id)
 
+      console.log("✅ API call successful, processing data...")
       setRealtimeData(data)
       setLastUpdated(new Date().toLocaleTimeString())
 
       // convert workflow data to dashboard summary format
+      console.log("🔄 Converting workflow data to dashboard format...")
       const dashboardSummary = api.convertWorkflowsToDashboard(data)
+      console.log("✅ Conversion complete, setting summary...")
       setSummary(dashboardSummary)
 
-    } catch (err) {
-      console.error('failed to fetch realtime dashboard:', err)
-      setError('failed to connect to backend - check if server is running')
+    } catch (err: any) {
+      console.error('🚨 CRITICAL ERROR in fetchRealtimeDashboard:', err)
+      console.error('🚨 Error details:')
+      console.error('- Name:', err.name)
+      console.error('- Message:', err.message)
+      console.error('- Stack:', err.stack)
 
-      // fallback to empty state
+      const errorMessage = err.message || 'Unknown error occurred'
+      setError(`Connection failed: ${errorMessage}`)
+
+      console.log("🔄 Setting fallback error state...")
+      // fallback to empty state with error alert
       setSummary({
         timestamp: new Date().toISOString(),
         status: 'offline',
@@ -79,333 +213,316 @@ export default function DashboardPage() {
           id: 1,
           type: 'connection',
           severity: 'error',
-          message: 'unable to connect to backend api',
+          message: `Unable to connect to backend: ${errorMessage}`,
           created_at: new Date().toISOString(),
         }],
         pipelines: [],
       })
     } finally {
+      console.log("✅ Finally block - setting loading to false")
       setLoading(false)
     }
   }
 
   const handleRefresh = async () => {
+    console.log("🔄 Manual refresh triggered")
     setRefreshing(true)
     await fetchRealtimeDashboard(true) // force refresh
     setRefreshing(false)
+    console.log("✅ Manual refresh completed")
   }
 
+  // Initial load effect
   useEffect(() => {
-    if (user?.id) {
-      fetchRealtimeDashboard()
-    }
-  }, [user?.id])
+    console.log("🎬 Initial useEffect triggered")
+    console.log("- isLoaded:", isLoaded)
+    console.log("- user?.id:", user?.id)
 
+    if (isLoaded && user?.id) {
+      console.log("✅ Conditions met, fetching dashboard...")
+      fetchRealtimeDashboard()
+    } else {
+      console.log("⏳ Waiting for user to load...")
+    }
+  }, [isLoaded, user?.id])
+
+  // WebSocket setup effect
   useEffect(() => {
+    console.log("🔌 Setting up websocket and polling...")
     // setup websocket and polling
     try {
       wsService.connect(
         (data) => {
-          console.log('websocket update received:', data)
+          console.log('📡 websocket update received:', data)
           fetchRealtimeDashboard()
         },
         (error) => {
-          console.log('websocket connection failed, using polling instead')
+          console.log('🔌 websocket connection failed, using polling instead:', error)
         }
       )
     } catch (error) {
-      console.log('websocket setup failed, using polling only')
+      console.log('🔌 websocket setup failed, using polling fallback:', error)
     }
 
-    // auto refresh every 1 minute for real-time data
+    // polling fallback every 60 seconds
     const interval = setInterval(() => {
-      if (user?.id) {
+      console.log("⏰ Polling interval triggered")
+      if (user?.id && !loading) {
+        console.log("⏰ Polling - fetching updated data...")
         fetchRealtimeDashboard()
       }
-    }, 60 * 1000) // 1 minute
+    }, 60000)
 
     return () => {
+      console.log("🧹 Cleaning up websocket and polling...")
+      wsService.disconnect()
       clearInterval(interval)
-      try {
-        wsService.disconnect()
-      } catch (error) {
-        // ignore disconnect errors
-      }
     }
-  }, [user?.id, wsService])
+  }, [user?.id])
 
-  const formatDuration = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${minutes}m ${secs}s`
-  }
-
-  const getSuccessRate = (): string => {
-    if (!summary || !summary.overview || typeof summary.overview.total_success_rate !== 'number') {
-      return "0.0%"
-    }
-    return `${summary.overview.total_success_rate.toFixed(1)}%`
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success': return 'text-green-600'
-      case 'failure': return 'text-red-600'
-      case 'in_progress': return 'text-blue-600'
-      case 'queued': return 'text-yellow-600'
-      default: return 'text-gray-600'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success': return <CheckCircle className="w-4 h-4 text-green-600" />
-      case 'failure': return <XCircle className="w-4 h-4 text-red-600" />
-      case 'in_progress': return <Activity className="w-4 h-4 text-blue-600" />
-      case 'queued': return <Clock className="w-4 h-4 text-yellow-600" />
-      default: return <Clock className="w-4 h-4 text-gray-600" />
-    }
-  }
-
-  // get tracked repositories from realtime data
-  const getTrackedRepos = () => {
-    if (!realtimeData?.selectedRepos) return []
-    return realtimeData.selectedRepos
-  }
-
+  // Show loading screen while user is loading
   if (!isLoaded) {
+    console.log("⏳ Showing user loading screen...")
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading user information...</p>
+        </div>
       </div>
     )
   }
 
+  // Show login prompt if no user
   if (!user) {
-    window.location.href = '/sign-in'
-    return null
+    console.log("🚫 No user found, redirecting to sign in...")
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Authentication Required</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">Please sign in to view your dashboard.</p>
+            <Link href="/sign-in">
+              <Button className="w-full">Sign In</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
-  const trackedRepos = getTrackedRepos()
-
+  // Main dashboard render
+  console.log("🎨 Rendering main dashboard...")
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with User Authentication */}
-      <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="border-b border-border">
+        <div className="flex h-16 items-center justify-between px-6">
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-serif font-bold">StreamCI</span>
-            </div>
-
-            {/* Navigation */}
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" asChild>
-                <Link href="/repositories" className="flex items-center space-x-2">
-                  <GitBranch className="w-4 h-4" />
-                  <span>repositories</span>
-                </Link>
-              </Button>
-
-              <Button variant="outline" className="flex items-center space-x-2 bg-primary/10">
-                <span>dashboard</span>
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-            </div>
+            <h1 className="text-xl font-serif">StreamCI Dashboard</h1>
+            <Badge variant="outline" className="text-xs">
+              {loading ? "Loading..." : error ? "Offline" : "Live"}
+              {lastUpdated && ` • Updated ${lastUpdated}`}
+            </Badge>
           </div>
 
-          {/* User info and controls */}
           <div className="flex items-center space-x-4">
-            <div className="hidden md:block text-sm text-muted-foreground">
-              Welcome back, {user.firstName || user.username || 'Developer'}
-            </div>
-
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
+              onClick={runDiagnostics}
+              className="text-xs"
+            >
+              <Zap className="w-3 h-3 mr-1" />
+              Run Diagnostics
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleRefresh}
               disabled={refreshing}
-              title="Force refresh data"
             >
-              {refreshing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>
-
             <UserButton />
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* Dashboard Content */}
-      <div className="container mx-auto px-4 py-8">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin" />
-            <span className="ml-2">loading real-time data...</span>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Dashboard Header with Tracked Repos */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold">Real-Time Dashboard</h1>
-                <div className="flex items-center gap-4 mt-2">
-                  <p className="text-muted-foreground">
-                    {lastUpdated && <>Updated: {lastUpdated}</>}
+      <div className="p-6 space-y-6">
+        {/* DEBUG PANEL - REMOVE IN PRODUCTION */}
+        <DebugPanel
+          user={user}
+          summary={summary}
+          realtimeData={realtimeData}
+          error={error}
+          loading={loading}
+          lastUpdated={lastUpdated}
+          diagnostics={diagnostics}
+        />
+
+        {/* Connection Status Alert */}
+        {error && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="pt-4">
+              <div className="flex items-center space-x-2">
+                <XCircle className="w-5 h-5 text-red-500" />
+                <div>
+                  <p className="font-medium text-red-900">Connection Error</p>
+                  <p className="text-sm text-red-700">{error}</p>
+                  <p className="text-xs text-red-600 mt-1">
+                    Check browser console for detailed debug information
                   </p>
-                  {trackedRepos.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Tracking:</span>
-                      {trackedRepos.map((repo) => (
-                        <Badge key={repo} variant="outline" className="text-xs">
-                          {repo}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
-              {realtimeData && (
-                <Badge variant={realtimeData.error ? "destructive" : "default"}>
-                  {realtimeData.totalWorkflows} workflows tracked
-                </Badge>
-              )}
-            </div>
+            </CardContent>
+          </Card>
+        )}
 
-            {/* Error Alert */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>{error}</span>
-                </div>
+        {/* Loading State */}
+        {loading && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-center space-x-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <p>Loading dashboard data...</p>
               </div>
-            )}
+            </CardContent>
+          </Card>
+        )}
 
-            {/* Main Metrics */}
-            {summary && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Success Rate</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{getSuccessRate()}</div>
-                    <div className="text-xs text-muted-foreground">from selected repos</div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Builds</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{summary.overview.total_builds}</div>
-                    <div className="text-xs text-muted-foreground">recent workflows</div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Repositories</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{trackedRepos.length}</div>
-                    <div className="text-xs text-muted-foreground">being monitored</div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Failed Builds</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{summary.overview.total_failed_builds}</div>
-                    <div className="text-xs text-muted-foreground">need attention</div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {/* Live Workflows */}
-            {realtimeData && realtimeData.workflows && realtimeData.workflows.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    Recent Workflow Runs
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleRefresh}
-                      disabled={refreshing}
-                    >
-                      {refreshing ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-4 h-4" />
-                      )}
-                      Refresh
-                    </Button>
+        {/* Dashboard Content */}
+        {summary && (
+          <>
+            {/* Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Success Rate
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {realtimeData.workflows.slice(0, 10).map((workflow) => (
-                      <div key={workflow.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          {getStatusIcon(workflow.conclusion || workflow.status)}
-                          <div>
-                            <div className="font-medium">{workflow.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {workflow.repository} • {new Date(workflow.created_at).toLocaleString()}
-                            </div>
-                          </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="text-2xl font-bold text-green-600">
+                      {summary.overview.total_success_rate}%
+                    </div>
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total Builds
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-2">
+                    <div className="text-2xl font-bold">
+                      {summary.overview.total_builds}
+                    </div>
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Active Pipelines
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-2">
+                    <div className="text-2xl font-bold">
+                      {summary.total_pipelines}
+                    </div>
+                    <GitBranch className="w-4 h-4 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Alerts
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-2">
+                    <div className="text-2xl font-bold text-red-600">
+                      {summary.active_alerts.length}
+                    </div>
+                    <Bell className="w-4 h-4 text-red-600" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Charts and Status */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <DashboardChart />
+              <LiveBuildStatus />
+            </div>
+
+            {/* Recent Activity & Analytics */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <RecentActivity />
+              {user?.id && <AnalyticsDashboard clerkUserId={user.id} />}
+            </div>
+
+            {/* Active Alerts */}
+            {summary.active_alerts.length > 0 && (
+              <Card className="border-border">
+                <CardHeader>
+                  <CardTitle className="font-serif flex items-center space-x-2">
+                    <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                    <span>Active Alerts</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {summary.active_alerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Badge variant={alert.severity === 'error' ? 'destructive' : 'secondary'}>
+                            {alert.severity}
+                          </Badge>
+                          <span className="text-sm">{alert.message}</span>
                         </div>
-                        <div className={`text-sm font-medium ${getStatusColor(workflow.conclusion || workflow.status)}`}>
-                          {workflow.conclusion || workflow.status}
-                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(alert.created_at).toLocaleTimeString()}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
             )}
+          </>
+        )}
 
-            {/* No Data State */}
-            {realtimeData && (!realtimeData.workflows || realtimeData.workflows.length === 0) && (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <GitBranch className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No workflow data found</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Make sure you have selected repositories with GitHub Actions workflows.
-                  </p>
-                  <div className="flex gap-2 justify-center">
-                    <Button asChild>
-                      <Link href="/repositories">Select Repositories</Link>
-                    </Button>
-                    <Button variant="outline" onClick={handleRefresh}>
-                      Refresh Data
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            {/* Analytics Section */}
-            {user?.id && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Analytics & Trends</h2>
-                <AnalyticsDashboard clerkUserId={user.id} />
+        {/* Setup Link if no data */}
+        {!loading && !error && (!summary || summary.total_pipelines === 0) && (
+          <Card>
+            <CardContent className="pt-6 text-center space-y-4">
+              <div>
+                <h3 className="text-lg font-medium">Welcome to StreamCI!</h3>
+                <p className="text-muted-foreground">
+                  Get started by connecting your GitHub repositories
+                </p>
               </div>
-            )}
-          </div>
-
+              <Link href="/setup">
+                <Button>Setup GitHub Integration</Button>
+              </Link>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
