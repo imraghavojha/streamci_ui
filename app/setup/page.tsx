@@ -121,16 +121,7 @@ export default function SetupPage() {
         setStatus("idle")
 
         try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-            addDebugLog(`Making POST request to ${API_URL}/api/setup/token`)
-
-            const requestBody = {
-                clerkUserId: user.id,
-                token: token.trim()
-            }
-            addDebugLog(`Request body: ${JSON.stringify(requestBody, null, 2)}`)
-
-            const response = await fetch(`${API_URL}/api/setup/token`, {
+            const response = await fetch("http://localhost:8080/api/setup/token", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -184,10 +175,7 @@ export default function SetupPage() {
         setValidating(true)
 
         try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-            addDebugLog(`Making POST request to ${API_URL}/api/setup/validate`)
-
-            const response = await fetch(`${API_URL}/api/setup/validate`, {
+            const response = await fetch("http://localhost:8080/api/setup/validate", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
