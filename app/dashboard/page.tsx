@@ -1,5 +1,5 @@
 "use client"
-import { ApiConnectivityTester } from "@/components/api-connectivity-tester"
+
 import { useState, useEffect } from "react"
 import { useUser, UserButton } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,6 @@ import { AnalyticsDashboard } from "@/components/analytics-dashboard"
 import {
   BarChart3,
   Bell,
-  ChevronDown,
   Clock,
   GitBranch,
   TrendingUp,
@@ -20,180 +19,65 @@ import {
   Loader2,
   CheckCircle,
   Activity,
-  Bug,
-  Zap
+  Settings
 } from "lucide-react"
 import { DashboardChart } from "@/components/dashboard-chart"
 import { LiveBuildStatus } from "@/components/live-build-status"
-import { RecentActivity } from "@/components/recent-activity"
+import { BuildHistory } from "@/components/build-history"
 import { api, DashboardSummary, RealtimeDashboard, WebSocketService } from "@/lib/api"
-
-// DEBUG COMPONENT - Shows all debugging info
-function DebugPanel({
-  user,
-  summary,
-  realtimeData,
-  error,
-  loading,
-  lastUpdated,
-  diagnostics
-}: any) {
-  const [showDebug, setShowDebug] = useState(false)
-
-  return (
-    <Card className="mb-4 border-yellow-200 bg-yellow-50">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Bug className="w-4 h-4" />
-            Debug Information
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDebug(!showDebug)}
-          >
-            {showDebug ? 'Hide' : 'Show'} Debug
-          </Button>
-        </div>
-      </CardHeader>
-      {showDebug && (
-        <CardContent className="text-xs space-y-4">
-          {/* Environment Check */}
-          <div>
-            <h4 className="font-semibold text-green-700">Environment Variables:</h4>
-            <div className="bg-gray-100 p-2 rounded mt-1 font-mono">
-              <div>NEXT_PUBLIC_API_URL: {process.env.NEXT_PUBLIC_API_URL || "❌ NOT SET"}</div>
-              <div>NODE_ENV: {process.env.NODE_ENV}</div>
-              <div>VERCEL_ENV: {process.env.VERCEL_ENV || "not in vercel"}</div>
-            </div>
-          </div>
-
-          {/* User State */}
-          <div>
-            <h4 className="font-semibold text-blue-700">User State:</h4>
-            <div className="bg-gray-100 p-2 rounded mt-1">
-              <div>User ID: {user?.id || "❌ NO USER"}</div>
-              <div>User loaded: {user ? "✅" : "❌"}</div>
-              <div>Email: {user?.primaryEmailAddress?.emailAddress || "N/A"}</div>
-            </div>
-          </div>
-
-          {/* API Status */}
-          <div>
-            <h4 className="font-semibold text-purple-700">API Status:</h4>
-            <div className="bg-gray-100 p-2 rounded mt-1">
-              <div>Loading: {loading ? "✅ YES" : "❌ NO"}</div>
-              <div>Error: {error ? `🚨 ${error}` : "✅ NONE"}</div>
-              <div>Last Updated: {lastUpdated || "❌ NEVER"}</div>
-              <div>Summary exists: {summary ? "✅ YES" : "❌ NO"}</div>
-              <div>Realtime data exists: {realtimeData ? "✅ YES" : "❌ NO"}</div>
-            </div>
-          </div>
-
-          {/* Data Preview */}
-          {summary && (
-            <div>
-              <h4 className="font-semibold text-indigo-700">Summary Data:</h4>
-              <div className="bg-gray-100 p-2 rounded mt-1 max-h-32 overflow-auto">
-                <pre className="text-xs">{JSON.stringify(summary, null, 2)}</pre>
-              </div>
-            </div>
-          )}
-
-          {diagnostics && (
-            <div>
-              <h4 className="font-semibold text-red-700">Diagnostics Results:</h4>
-              <div className="bg-gray-100 p-2 rounded mt-1">
-                {Object.entries(diagnostics).map(([test, result]) => (
-                  <div key={test}>
-                    {test}: {result ? "✅ PASS" : "❌ FAIL"}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      )}
-    </Card>
-  )
-}
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser()
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [realtimeData, setRealtimeData] = useState<RealtimeDashboard | null>(null)
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<string>("")
-  const [wsService] = useState(() => new WebSocketService())
-  const [diagnostics, setDiagnostics] = useState<any>(null)
+  const [selectedRepos, setSelectedRepos] = useState<string[]>([])
 
-  // DEBUG: Log all state changes
   useEffect(() => {
-    console.log("🎯 DASHBOARD STATE CHANGE:")
-    console.log("- User loaded:", isLoaded, "User ID:", user?.id)
-    console.log("- Loading:", loading)
-    console.log("- Error:", error)
-    console.log("- Summary exists:", !!summary)
-    console.log("- Realtime data exists:", !!realtimeData)
-    console.log("- Last updated:", lastUpdated)
-  }, [user, isLoaded, loading, error, summary, realtimeData, lastUpdated])
+    if (isLoaded && user?.id) {
+      fetchRealtimeDashboard()
 
-  const runDiagnostics = async () => {
-    console.log("🔍 Starting comprehensive diagnostics...")
-    try {
-      const results = await api.runDiagnostics()
-      setDiagnostics(results)
-      console.log("🔍 Diagnostics completed:", results)
-    } catch (e) {
-      console.error("🔍 Diagnostics failed:", e)
-      setDiagnostics({ error: "Diagnostics failed to run" })
+      // Setup websocket and polling
+      const ws = new WebSocketService()
+      ws.connect((update) => {
+        fetchRealtimeDashboard()
+      })
+
+      const interval = setInterval(() => {
+        fetchRealtimeDashboard()
+      }, 30000) // refresh every 30 seconds
+
+      return () => {
+        ws.disconnect()
+        clearInterval(interval)
+      }
     }
-  }
+  }, [isLoaded, user?.id])
 
   const fetchRealtimeDashboard = async (force = false) => {
-    console.log(`🔄 fetchRealtimeDashboard called - force: ${force}, user.id: ${user?.id}`)
-
-    if (!user?.id) {
-      console.warn("🚨 Cannot fetch dashboard - no user ID")
-      return
-    }
+    if (!user?.id) return
 
     try {
-      console.log("📊 Setting loading state and clearing error...")
-      setLoading(!force) // don't show loading spinner for force refresh
+      setLoading(!force)
       setError(null)
 
-      console.log("📡 Making API call...")
-      // if force refresh, use refresh endpoint to clear cache
       const data = force
         ? await api.refreshRealtimeDashboard(user.id)
         : await api.getRealtimeDashboard(user.id)
 
-      console.log("✅ API call successful, processing data...")
       setRealtimeData(data)
       setLastUpdated(new Date().toLocaleTimeString())
+      setSelectedRepos(data.selectedRepos || [])
 
-      // convert workflow data to dashboard summary format
-      console.log("🔄 Converting workflow data to dashboard format...")
       const dashboardSummary = api.convertWorkflowsToDashboard(data)
-      console.log("✅ Conversion complete, setting summary...")
       setSummary(dashboardSummary)
 
     } catch (err: any) {
-      console.error('🚨 CRITICAL ERROR in fetchRealtimeDashboard:', err)
-      console.error('🚨 Error details:')
-      console.error('- Name:', err.name)
-      console.error('- Message:', err.message)
-      console.error('- Stack:', err.stack)
-
       const errorMessage = err.message || 'Unknown error occurred'
       setError(`Connection failed: ${errorMessage}`)
 
-      console.log("🔄 Setting fallback error state...")
-      // fallback to empty state with error alert
       setSummary({
         timestamp: new Date().toISOString(),
         status: 'offline',
@@ -209,160 +93,101 @@ export default function DashboardPage() {
           successful_builds_last_24h: 0,
           failed_builds_last_24h: 0,
         },
-        active_alerts: [{
-          id: 1,
-          type: 'connection',
-          severity: 'error',
-          message: `Unable to connect to backend: ${errorMessage}`,
-          created_at: new Date().toISOString(),
-        }],
-        pipelines: [],
+        active_alerts: [],
+        pipelines: []
       })
     } finally {
-      console.log("✅ Finally block - setting loading to false")
       setLoading(false)
     }
   }
 
-  const handleRefresh = async () => {
-    console.log("🔄 Manual refresh triggered")
-    setRefreshing(true)
-    await fetchRealtimeDashboard(true) // force refresh
-    setRefreshing(false)
-    console.log("✅ Manual refresh completed")
-  }
-
-  // Initial load effect
-  useEffect(() => {
-    console.log("🎬 Initial useEffect triggered")
-    console.log("- isLoaded:", isLoaded)
-    console.log("- user?.id:", user?.id)
-
-    if (isLoaded && user?.id) {
-      console.log("✅ Conditions met, fetching dashboard...")
-      fetchRealtimeDashboard()
-    } else {
-      console.log("⏳ Waiting for user to load...")
-    }
-  }, [isLoaded, user?.id])
-
-  // WebSocket setup effect
-  useEffect(() => {
-    console.log("🔌 Setting up websocket and polling...")
-    // setup websocket and polling
-    try {
-      wsService.connect(
-        (data) => {
-          console.log('📡 websocket update received:', data)
-          fetchRealtimeDashboard()
-        },
-        (error) => {
-          console.log('🔌 websocket connection failed, using polling instead:', error)
-        }
-      )
-    } catch (error) {
-      console.log('🔌 websocket setup failed, using polling fallback:', error)
-    }
-
-    // polling fallback every 60 seconds
-    const interval = setInterval(() => {
-      console.log("⏰ Polling interval triggered")
-      if (user?.id && !loading) {
-        console.log("⏰ Polling - fetching updated data...")
-        fetchRealtimeDashboard()
-      }
-    }, 60000)
-
-    return () => {
-      console.log("🧹 Cleaning up websocket and polling...")
-      wsService.disconnect()
-      clearInterval(interval)
-    }
-  }, [user?.id])
-
-  // Show loading screen while user is loading
-  if (!isLoaded) {
-    console.log("⏳ Showing user loading screen...")
+  if (!isLoaded || !user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Loading user information...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     )
   }
 
-  // Show login prompt if no user
-  if (!user) {
-    console.log("🚫 No user found, redirecting to sign in...")
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Authentication Required</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">Please sign in to view your dashboard.</p>
-            <Link href="/sign-in">
-              <Button className="w-full">Sign In</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  // Main dashboard render
-  console.log("🎨 Rendering main dashboard...")
   return (
     <div className="min-h-screen bg-background">
-      <div className="border-b border-border">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-serif">StreamCI Dashboard</h1>
-            <Badge variant="outline" className="text-xs">
-              {loading ? "Loading..." : error ? "Offline" : "Live"}
-              {lastUpdated && ` • Updated ${lastUpdated}`}
-            </Badge>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={runDiagnostics}
-              className="text-xs"
-            >
-              <Zap className="w-3 h-3 mr-1" />
-              Run Diagnostics
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </Button>
-            <UserButton />
+      {/* Header */}
+      <div className="border-b bg-card">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">StreamCI Dashboard</h1>
+              {lastUpdated && (
+                <p className="text-sm text-muted-foreground">
+                  Last updated: {lastUpdated}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center space-x-3">
+              <Link href="/repositories">
+                <Button variant="outline" size="sm">
+                  <GitBranch className="w-4 h-4 mr-2" />
+                  Manage Repos
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchRealtimeDashboard(true)}
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <UserButton />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
-        {/* DEBUG PANEL - REMOVE IN PRODUCTION */}
-        <DebugPanel
-          user={user}
-          summary={summary}
-          realtimeData={realtimeData}
-          error={error}
-          loading={loading}
-          lastUpdated={lastUpdated}
-          diagnostics={diagnostics}
-        />
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Selected Repositories */}
+        {selectedRepos.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <GitBranch className="w-4 h-4" />
+                Monitoring {selectedRepos.length} {selectedRepos.length === 1 ? 'Repository' : 'Repositories'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {selectedRepos.map((repo) => (
+                  <Badge key={repo} variant="secondary">
+                    {repo}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Connection Status Alert */}
+        {/* No repos selected */}
+        {selectedRepos.length === 0 && !loading && (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-3">
+                <GitBranch className="w-8 h-8 text-blue-500" />
+                <div className="flex-1">
+                  <p className="font-medium text-blue-900">No repositories selected</p>
+                  <p className="text-sm text-blue-700">Select repositories to start monitoring your workflows</p>
+                </div>
+                <Link href="/repositories">
+                  <Button>
+                    Select Repositories
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Connection Error */}
         {error && (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="pt-4">
@@ -371,9 +196,6 @@ export default function DashboardPage() {
                 <div>
                   <p className="font-medium text-red-900">Connection Error</p>
                   <p className="text-sm text-red-700">{error}</p>
-                  <p className="text-xs text-red-600 mt-1">
-                    Check browser console for detailed debug information
-                  </p>
                 </div>
               </div>
             </CardContent>
@@ -393,7 +215,7 @@ export default function DashboardPage() {
         )}
 
         {/* Dashboard Content */}
-        {summary && (
+        {summary && !loading && (
           <>
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -432,15 +254,15 @@ export default function DashboardPage() {
               <Card className="border-border">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Active Pipelines
+                    Builds Today
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center space-x-2">
                     <div className="text-2xl font-bold">
-                      {summary.total_pipelines}
+                      {summary.recent_activity.builds_last_24h}
                     </div>
-                    <GitBranch className="w-4 h-4 text-primary" />
+                    <Activity className="w-4 h-4 text-blue-600" />
                   </div>
                 </CardContent>
               </Card>
@@ -468,11 +290,11 @@ export default function DashboardPage() {
               <LiveBuildStatus />
             </div>
 
-            {/* Recent Activity & Analytics */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RecentActivity />
-              {user?.id && <AnalyticsDashboard clerkUserId={user.id} />}
-            </div>
+            {/* Build History - Full Width */}
+            <BuildHistory workflows={realtimeData?.workflows || []} />
+
+            {/* Analytics */}
+            {user?.id && <AnalyticsDashboard clerkUserId={user.id} />}
 
             {/* Active Alerts */}
             {summary.active_alerts.length > 0 && (
@@ -491,14 +313,16 @@ export default function DashboardPage() {
                         className="flex items-center justify-between p-3 bg-muted rounded-lg"
                       >
                         <div className="flex items-center space-x-3">
-                          <Badge variant={alert.severity === 'error' ? 'destructive' : 'secondary'}>
+                          <Badge variant={alert.severity === 'error' ? 'destructive' : 'default'}>
                             {alert.severity}
                           </Badge>
-                          <span className="text-sm">{alert.message}</span>
+                          <div>
+                            <p className="font-medium">{alert.message}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(alert.created_at).toLocaleString()}
+                            </p>
+                          </div>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(alert.created_at).toLocaleTimeString()}
-                        </span>
                       </div>
                     ))}
                   </div>
@@ -506,23 +330,6 @@ export default function DashboardPage() {
               </Card>
             )}
           </>
-        )}
-
-        {/* Setup Link if no data */}
-        {!loading && !error && (!summary || summary.total_pipelines === 0) && (
-          <Card>
-            <CardContent className="pt-6 text-center space-y-4">
-              <div>
-                <h3 className="text-lg font-medium">Welcome to StreamCI!</h3>
-                <p className="text-muted-foreground">
-                  Get started by connecting your GitHub repositories
-                </p>
-              </div>
-              <Link href="/setup">
-                <Button>Setup GitHub Integration</Button>
-              </Link>
-            </CardContent>
-          </Card>
         )}
       </div>
     </div>

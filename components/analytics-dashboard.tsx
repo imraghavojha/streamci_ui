@@ -16,7 +16,8 @@ export function AnalyticsDashboard({ clerkUserId }: AnalyticsDashboardProps) {
     useEffect(() => {
         const fetchTrends = async () => {
             try {
-                const response = await fetch(`http://localhost:8080/api/analytics/trends/${clerkUserId}`)
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+                const response = await fetch(`${API_URL}/api/analytics/trends/${clerkUserId}`)
                 const data = await response.json()
                 setTrends(data)
             } catch (error) {
@@ -104,7 +105,7 @@ export function AnalyticsDashboard({ clerkUserId }: AnalyticsDashboardProps) {
                     <CardTitle className="text-lg">Recent Success Trends</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {trends.success_rate_trends && trends.success_rate_trends.length > 0 ? (
+                    {trends.success_rate_trends && Array.isArray(trends.success_rate_trends) && trends.success_rate_trends.length > 0 ? (
                         <div className="space-y-3">
                             {trends.success_rate_trends.slice(-5).map((trend: any, index: number) => (
                                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded">
@@ -138,7 +139,7 @@ export function AnalyticsDashboard({ clerkUserId }: AnalyticsDashboardProps) {
                     <CardTitle className="text-lg">Repository Health</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {trends.failure_patterns && trends.failure_patterns.length > 0 ? (
+                    {trends.failure_patterns && Array.isArray(trends.failure_patterns) && trends.failure_patterns.length > 0 ? (
                         <div className="space-y-3">
                             {trends.failure_patterns.map((pattern: any, index: number) => (
                                 <div key={index} className="p-3 border border-red-200 bg-red-50 rounded">
