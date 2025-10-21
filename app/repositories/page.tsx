@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, GitBranch, CheckCircle, ArrowRight } from "lucide-react"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 interface Repository {
     name: string
@@ -35,7 +36,7 @@ export default function RepositoriesPage() {
     const fetchRepositories = async () => {
         try {
             setLoading(true)
-            const response = await fetch(`http://localhost:8080/api/repositories/${user?.id}`)
+            const response = await fetch(`${API_URL}/api/repositories/${user?.id}`)
             const data = await response.json()
 
             if (data.success) {
@@ -65,7 +66,7 @@ export default function RepositoriesPage() {
     const saveSelection = async () => {
         try {
             setSaving(true)
-            const response = await fetch(`http://localhost:8080/api/repositories/${user?.id}/select`, {
+            const response = await fetch(`${API_URL}/api/repositories/${user?.id}/select`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
