@@ -1,7 +1,5 @@
-// app/dashboard/page.tsx
 "use client"
 
-import { useState, useEffect } from "react"
 import { useUser, UserButton } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,122 +9,35 @@ import { AnalyticsDashboard } from "@/components/analytics-dashboard"
 import {
   BarChart3,
   Bell,
-  Clock,
   GitBranch,
   TrendingUp,
   AlertTriangle,
   XCircle,
   RefreshCw,
   Loader2,
-  CheckCircle,
   Activity,
-  Settings
 } from "lucide-react"
 import { DashboardChart } from "@/components/dashboard-chart"
 import { LiveBuildStatus } from "@/components/live-build-status"
 import { BuildHistory } from "@/components/build-history"
-import { api, DashboardSummary, RealtimeDashboard, WebSocketService } from "@/lib/api"
+import { DashboardPollingProvider, useDashboardData } from '@/contexts/dashboard-polling-context'
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { user, isLoaded } = useUser()
-  const [summary, setSummary] = useState<DashboardSummary | null>(null)
-  const [realtimeData, setRealtimeData] = useState<RealtimeDashboard | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState<string>("")
-  const [selectedRepos, setSelectedRepos] = useState<string[]>([])
-  const [isRefreshing, setIsRefreshing] = useState(false) // state for refresh animation
+  const {
+    realtimeData,
+    summary,
+    loading,
+    error,
+    lastUpdated,
+    refresh,
+    isRefreshing
+  } = useDashboardData()
 
-  // effect for initial load, websocket, and polling
-  useEffect(() => {
-    if (isLoaded && user?.id) {
-      fetchRealtimeDashboard()
+  const handleRefresh = () => refresh(true)
 
-      const ws = new WebSocketService()
-      ws.connect((update) => {
-        fetchRealtimeDashboard() // fetch on websocket update
-      })
+  const selectedRepos = realtimeData?.selectedRepos || []
 
-      const interval = setInterval(() => {
-        fetchRealtimeDashboard() // regular polling
-      }, 30000)
-
-      return () => {
-        ws.disconnect()
-        clearInterval(interval)
-      }
-    }
-  }, [isLoaded, user?.id])
-
-  // effect to handle refresh param from repo selection page
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('refresh') === 'true') {
-      fetchRealtimeDashboard(true) // force refresh
-      // clean up url
-      window.history.replaceState({}, '', '/dashboard')
-    }
-  }, []) // run only once on mount
-
-  const fetchRealtimeDashboard = async (force = false) => {
-    if (!user?.id) return
-
-    try {
-      // only show full loading state on initial load, not background refresh
-      if (!realtimeData || force) {
-        setLoading(true)
-      }
-      setError(null)
-
-      const data = force
-        ? await api.refreshRealtimeDashboard(user.id)
-        : await api.getRealtimeDashboard(user.id)
-
-      setRealtimeData(data)
-      setLastUpdated(new Date().toLocaleTimeString())
-      setSelectedRepos(data.selectedRepos || [])
-
-      const dashboardSummary = api.convertWorkflowsToDashboard(data)
-      setSummary(dashboardSummary)
-
-    } catch (err: any) {
-      const errorMessage = err.message || 'unknown error occurred'
-      setError(`connection failed: ${errorMessage}`)
-
-      // provide a default empty state on error
-      setSummary({
-        timestamp: new Date().toISOString(),
-        status: 'offline',
-        total_pipelines: 0,
-        overview: {
-          total_success_rate: 0,
-          total_builds: 0,
-          total_successful_builds: 0,
-          total_failed_builds: 0,
-        },
-        recent_activity: {
-          builds_last_24h: 0,
-          successful_builds_last_24h: 0,
-          failed_builds_last_24h: 0,
-        },
-        active_alerts: [],
-        pipelines: []
-      })
-      setRealtimeData({ workflows: [], lastUpdated: '', totalWorkflows: 0 }) // clear workflow data on error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // handler for the refresh button click
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    await fetchRealtimeDashboard(true) // force fetch
-    // keep animation for a bit for visual feedback
-    setTimeout(() => setIsRefreshing(false), 500)
-  }
-
-  // loading state while clerk initializes
   if (!isLoaded || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -137,7 +48,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* header */}
+      {/* Header */}
       <div className="border-b bg-card">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -160,7 +71,7 @@ export default function DashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
-                disabled={isRefreshing || loading} // disable during initial load too
+                disabled={isRefreshing || loading}
                 className="transition-all"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
@@ -173,7 +84,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="container mx-auto p-6 space-y-6">
-        {/* selected repositories */}
+        {/* Selected Repositories */}
         {selectedRepos.length > 0 && !loading && (
           <Card>
             <CardHeader className="pb-3">
@@ -194,7 +105,7 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* no repos selected prompt */}
+        {/* No repos selected */}
         {selectedRepos.length === 0 && !loading && !error && (
           <Card className="border-blue-200 bg-blue-50">
             <CardContent className="pt-6">
@@ -214,7 +125,7 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* connection error */}
+        {/* Connection Error */}
         {error && !loading && (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="pt-4">
@@ -229,7 +140,7 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* loading state */}
+        {/* Loading State */}
         {loading && (
           <Card>
             <CardContent className="pt-6">
@@ -241,10 +152,10 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* dashboard content */}
+        {/* Dashboard Content */}
         {summary && !loading && (
           <>
-            {/* overview cards */}
+            {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="border-border">
                 <CardHeader className="pb-2">
@@ -311,19 +222,19 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            {/* charts and status */}
+            {/* Charts and Status */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <DashboardChart />
               <LiveBuildStatus />
             </div>
 
-            {/* build history */}
+            {/* Build History - Full Width */}
             <BuildHistory workflows={realtimeData?.workflows || []} />
 
-            {/* analytics */}
+            {/* Analytics */}
             {user?.id && <AnalyticsDashboard clerkUserId={user.id} />}
 
-            {/* active alerts */}
+            {/* Active Alerts */}
             {summary.active_alerts.length > 0 && (
               <Card className="border-border">
                 <CardHeader>
@@ -360,5 +271,14 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+  )
+}
+
+
+export default function DashboardPage() {
+  return (
+    <DashboardPollingProvider>
+      <DashboardContent />
+    </DashboardPollingProvider>
   )
 }

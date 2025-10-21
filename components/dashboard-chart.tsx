@@ -33,7 +33,7 @@ export function DashboardChart() {
 
       const trendsResponse = await api.getTrends(user.id)
 
-      // Extract the actual trend data from the response
+      // extract the actual trend data from the response
       const trendData = ((trendsResponse.success_rate_trends || []) as any[]).map((trend: any) => ({
         date: trend.date || 'N/A',
         successRate: trend.success_rate || 0
@@ -50,12 +50,12 @@ export function DashboardChart() {
     }
   }
 
+  // critical: chart needs its own initial fetch, no polling
   useEffect(() => {
-    fetchTrendData()
-
-    // refresh every 5 minutes
-    const interval = setInterval(fetchTrendData, 5 * 60 * 1000)
-    return () => clearInterval(interval)
+    if (user?.id) {
+      fetchTrendData()
+    }
+    // no interval - removed polling!
   }, [user?.id])
 
   return (
@@ -73,11 +73,22 @@ export function DashboardChart() {
       </CardHeader>
       <CardContent>
         {data.length > 0 ? (
-          <ChartContainer config={chartConfig} className="h-[200px]">
+          <ChartContainer config={chartConfig} className="h-[200px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data}>
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tickFormatter={(value) => value.slice(0, 10)}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  domain={[0, 100]}
+                />
                 <ChartTooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
@@ -94,16 +105,16 @@ export function DashboardChart() {
                 <Line
                   type="monotone"
                   dataKey="successRate"
-                  stroke="hsl(var(--primary))"
+                  stroke={"hsl(var(--primary))"}
                   strokeWidth={2}
-                  dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
+                  dot={false}
                 />
               </LineChart>
             </ResponsiveContainer>
           </ChartContainer>
         ) : (
           <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-            {loading ? 'Loading chart data...' : 'No trend data available yet'}
+            {loading ? 'Loading chart data...' : 'No trend data available'}
           </div>
         )}
       </CardContent>
