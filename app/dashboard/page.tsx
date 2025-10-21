@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -34,20 +35,21 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<string>("")
   const [selectedRepos, setSelectedRepos] = useState<string[]>([])
+  const [isRefreshing, setIsRefreshing] = useState(false) // state for refresh animation
 
+  // effect for initial load, websocket, and polling
   useEffect(() => {
     if (isLoaded && user?.id) {
       fetchRealtimeDashboard()
 
-      // Setup websocket and polling
       const ws = new WebSocketService()
       ws.connect((update) => {
-        fetchRealtimeDashboard()
+        fetchRealtimeDashboard() // fetch on websocket update
       })
 
       const interval = setInterval(() => {
-        fetchRealtimeDashboard()
-      }, 30000) // refresh every 30 seconds
+        fetchRealtimeDashboard() // regular polling
+      }, 30000)
 
       return () => {
         ws.disconnect()
@@ -56,11 +58,24 @@ export default function DashboardPage() {
     }
   }, [isLoaded, user?.id])
 
+  // effect to handle refresh param from repo selection page
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('refresh') === 'true') {
+      fetchRealtimeDashboard(true) // force refresh
+      // clean up url
+      window.history.replaceState({}, '', '/dashboard')
+    }
+  }, []) // run only once on mount
+
   const fetchRealtimeDashboard = async (force = false) => {
     if (!user?.id) return
 
     try {
-      setLoading(!force)
+      // only show full loading state on initial load, not background refresh
+      if (!realtimeData || force) {
+        setLoading(true)
+      }
       setError(null)
 
       const data = force
@@ -75,9 +90,10 @@ export default function DashboardPage() {
       setSummary(dashboardSummary)
 
     } catch (err: any) {
-      const errorMessage = err.message || 'Unknown error occurred'
-      setError(`Connection failed: ${errorMessage}`)
+      const errorMessage = err.message || 'unknown error occurred'
+      setError(`connection failed: ${errorMessage}`)
 
+      // provide a default empty state on error
       setSummary({
         timestamp: new Date().toISOString(),
         status: 'offline',
@@ -96,11 +112,21 @@ export default function DashboardPage() {
         active_alerts: [],
         pipelines: []
       })
+      setRealtimeData({ workflows: [], lastUpdated: '', totalWorkflows: 0 }) // clear workflow data on error
     } finally {
       setLoading(false)
     }
   }
 
+  // handler for the refresh button click
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchRealtimeDashboard(true) // force fetch
+    // keep animation for a bit for visual feedback
+    setTimeout(() => setIsRefreshing(false), 500)
+  }
+
+  // loading state while clerk initializes
   if (!isLoaded || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -111,7 +137,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* header */}
       <div className="border-b bg-card">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -133,10 +159,11 @@ export default function DashboardPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => fetchRealtimeDashboard(true)}
-                disabled={loading}
+                onClick={handleRefresh}
+                disabled={isRefreshing || loading} // disable during initial load too
+                className="transition-all"
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
               <UserButton />
@@ -146,8 +173,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="container mx-auto p-6 space-y-6">
-        {/* Selected Repositories */}
-        {selectedRepos.length > 0 && (
+        {/* selected repositories */}
+        {selectedRepos.length > 0 && !loading && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -167,8 +194,8 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* No repos selected */}
-        {selectedRepos.length === 0 && !loading && (
+        {/* no repos selected prompt */}
+        {selectedRepos.length === 0 && !loading && !error && (
           <Card className="border-blue-200 bg-blue-50">
             <CardContent className="pt-6">
               <div className="flex items-center space-x-3">
@@ -187,8 +214,8 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Connection Error */}
-        {error && (
+        {/* connection error */}
+        {error && !loading && (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="pt-4">
               <div className="flex items-center space-x-2">
@@ -202,7 +229,7 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Loading State */}
+        {/* loading state */}
         {loading && (
           <Card>
             <CardContent className="pt-6">
@@ -214,10 +241,10 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Dashboard Content */}
+        {/* dashboard content */}
         {summary && !loading && (
           <>
-            {/* Overview Cards */}
+            {/* overview cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="border-border">
                 <CardHeader className="pb-2">
@@ -284,19 +311,19 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            {/* Charts and Status */}
+            {/* charts and status */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <DashboardChart />
               <LiveBuildStatus />
             </div>
 
-            {/* Build History - Full Width */}
+            {/* build history */}
             <BuildHistory workflows={realtimeData?.workflows || []} />
 
-            {/* Analytics */}
+            {/* analytics */}
             {user?.id && <AnalyticsDashboard clerkUserId={user.id} />}
 
-            {/* Active Alerts */}
+            {/* active alerts */}
             {summary.active_alerts.length > 0 && (
               <Card className="border-border">
                 <CardHeader>

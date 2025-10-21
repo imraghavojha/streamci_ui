@@ -1,51 +1,94 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useUser } from "@clerk/nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Activity, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react"
-import { api, LiveBuild } from "@/lib/api"
+import { api } from "@/lib/api"
+
+interface LiveBuild {
+  id: number | string
+  status: string
+  branch?: string
+  commit: string
+  duration: string
+  pipeline_name?: string
+  repository?: string
+  name?: string
+}
 
 export function LiveBuildStatus() {
+  const { user } = useUser()
   const [builds, setBuilds] = useState<LiveBuild[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetchLiveBuilds = async () => {
+    if (!user?.id) return
+
     try {
       setLoading(true)
-      const liveBuilds = await api.getLiveBuilds()
-      setBuilds(liveBuilds)
+
+      // Fetch from realtime dashboard to get actual running workflows
+      const realtimeData = await api.getRealtimeDashboard(user.id)
+
+      // Filter only in_progress and queued workflows
+      const runningWorkflows = (realtimeData.workflows || [])
+        .filter((w: any) =>
+          w.status === 'in_progress' ||
+          w.status === 'queued' ||
+          w.status === 'waiting'
+        )
+        .map((w: any, index: number) => ({
+          id: w.id || index,
+          status: w.status,
+          branch: w.head_branch || w.branch || 'main',  // FIX: Use head_branch from GitHub API
+          commit: w.name || 'Workflow',
+          duration: calculateDuration(w.created_at),
+          pipeline_name: w.name,
+          repository: w.repository
+        }))
+
+      setBuilds(runningWorkflows)
       setError(null)
     } catch (err) {
       console.error('failed to fetch live builds:', err)
       setError('failed to load live builds')
-      // fallback to mock data
-      setBuilds([
-        { id: 1, status: "running", branch: "feature/auth", duration: "2m 15s", commit: "Fix login validation" },
-        { id: 2, status: "queued", branch: "main", duration: "0s", commit: "Update dependencies" },
-        { id: 3, status: "success", branch: "feature/ui", duration: "3m 42s", commit: "Improve dashboard layout" },
-        { id: 4, status: "failed", branch: "hotfix/bug", duration: "1m 28s", commit: "Fix critical bug in payment" },
-      ])
+      setBuilds([])
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    fetchLiveBuilds()
+  const calculateDuration = (createdAt: string): string => {
+    if (!createdAt) return '0s'
+    const start = new Date(createdAt)
+    const now = new Date()
+    const diffSeconds = Math.floor((now.getTime() - start.getTime()) / 1000)
 
-    // refresh every 30 seconds for live updates
-    const interval = setInterval(fetchLiveBuilds, 30 * 1000)
-    return () => clearInterval(interval)
-  }, [])
+    if (diffSeconds < 60) return `${diffSeconds}s`
+    const minutes = Math.floor(diffSeconds / 60)
+    const seconds = diffSeconds % 60
+    return `${minutes}m ${seconds}s`
+  }
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchLiveBuilds()
+
+      // refresh every 10 seconds for live updates
+      const interval = setInterval(fetchLiveBuilds, 10 * 1000)
+      return () => clearInterval(interval)
+    }
+  }, [user?.id])
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "running":
       case "in_progress":
         return <Activity className="w-4 h-4 text-blue-500 animate-pulse" />
       case "queued":
+      case "waiting":
         return <Clock className="w-4 h-4 text-yellow-500" />
       case "success":
       case "completed":
@@ -60,7 +103,6 @@ export function LiveBuildStatus() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "running":
       case "in_progress":
         return (
           <Badge variant="secondary" className="bg-blue-500/10 text-blue-500">
@@ -68,6 +110,7 @@ export function LiveBuildStatus() {
           </Badge>
         )
       case "queued":
+      case "waiting":
         return (
           <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-500">
             Queued
@@ -120,9 +163,9 @@ export function LiveBuildStatus() {
                     <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                       {build.commit}
                     </p>
-                    {build.pipeline_name && (
+                    {build.repository && (
                       <p className="text-xs text-muted-foreground">
-                        {build.pipeline_name}
+                        {build.repository}
                       </p>
                     )}
                   </div>
