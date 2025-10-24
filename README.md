@@ -2,87 +2,189 @@
 
 > *vibecoded at 3am with coffee and dreams*
 
-## What is this?
+# StreamCI UI
 
-So basically I took a Vercel Next.js template and went absolutely feral with it. This is StreamCI - a CI/CD monitoring dashboard that looks way cooler than it has any right to be.
+Real-time CI/CD pipeline monitoring dashboard built with Next.js.
 
-## The Vibe
+## Overview
 
-Started with: ✨ Vercel's fancy template  
-Ended with: 🎨 A whole CI/CD monitoring dashboard
-
-## What Actually Works
-
-✅ **The Pretty Stuff:**
-- Landing page with animations that go *brrrr*
-- Demo page with fake workflows that look super real
-- Dashboard with charts and graphs
-- Dark mode only (because we're professionals)
-- Clerk authentication (login actually works!)
-- Repository selection page
-
-✅ **The Smart Stuff:**
-- Real-time dashboard polling (it refreshes, I promise)
-- Build history display
-- Success rate trends
-- Live build status component
-- Analytics dashboard with actual charts
-- Alert system UI
-
-✅ **The Backend (Spring Boot):**
-- Pattern analysis APIs
-- Queue monitoring service
-- Alert service
-- GitHub webhook setup (infrastructure)
-- PostgreSQL database schemas
-
-## What's... "In Progress"
-
-🚧 **The Real MVP Stuff:**
-- Actual GitHub webhook integration (templates are there tho)
-- Real-time WebSocket connections (currently vibing with polling)
-- Full backend-frontend data flow (mock data doing its best)
-- Database actually being populated (you'll need to configure that)
-- The ML/prediction features (they exist in code, just need data)
+This is the frontend interface for StreamCI, a CI/CD monitoring platform. The project is built on a modified Vercel Next.js template with custom components and features added for CI/CD workflow visualization and monitoring.
 
 ## Tech Stack
 
-**Frontend:**
-- Next.js 14 (App Router because we're modern)
-- TypeScript (for that false sense of security)
-- Tailwind + shadcn/ui (making it pretty)
-- Recharts (for the graph vibes)
-- Clerk (authentication that actually works)
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS with shadcn/ui component library
+- **Charts**: Recharts for data visualization
+- **Authentication**: Clerk
+- **HTTP Client**: Axios for API communication
 
-**Backend:**
-- Spring Boot (Java in 2025, fight me)
-- PostgreSQL (with Supabase)
-- WebSocket support (theoretically)
-- Pattern analysis algorithms (they're there!)
+## Features
 
-## Setup (if you're brave)
+### Implemented
 
-```bash
-# frontend
-npm install --legacy-peer-deps
-npm run dev
+- **Landing Page**: Marketing page with feature overview and call-to-action
+- **Interactive Demo Page**: 
+  - Simulated CI/CD workflow execution
+  - Real-time log streaming visualization
+  - Live metrics charts (success rate, build time, queue depth, runner status)
+  - Alert system preview
+  - Build history heatmap
+- **Dashboard**:
+  - Real-time monitoring interface with configurable polling
+  - Build history display with status indicators
+  - Success rate trend charts (7-day view)
+  - Live build status tracking
+  - Analytics dashboard with pattern insights
+  - Active alerts display
+  - Repository selector integration
+- **Repository Management Page**: GitHub repository selection and configuration UI
+- **Authentication Flow**: Complete sign-in/sign-up flow with Clerk, protected routes via middleware
 
-# backend (Spring Boot)
-./mvnw spring-boot:run
+### UI Components
+
+- `analytics-dashboard.tsx` - Pattern analysis and insights display
+- `build-history.tsx` - Build execution timeline
+- `dashboard-chart.tsx` - Success rate trend visualization
+- `live-build-status.tsx` - Real-time build status cards
+- Custom dashboard polling context for data refresh management
+
+## Project Structure
+
+```
+streamci-ui/
+├── app/
+│   ├── dashboard/         # Main monitoring dashboard
+│   ├── demo/             # Interactive demo with simulated data
+│   ├── repositories/     # Repository management
+│   ├── sign-in/          # Clerk auth pages
+│   ├── sign-up/
+│   ├── layout.tsx        # Root layout with Clerk provider
+│   └── page.tsx          # Landing page
+├── components/
+│   ├── ui/               # shadcn/ui base components
+│   ├── analytics-dashboard.tsx
+│   ├── build-history.tsx
+│   ├── dashboard-chart.tsx
+│   └── live-build-status.tsx
+├── contexts/
+│   └── dashboard-polling-context.tsx
+├── lib/
+│   └── api.ts           # API client configuration
+└── public/              # Static assets
 ```
 
-Don't forget to:
-1. Copy `.env.example` to `.env.local`
-2. Add your Clerk keys
-3. Configure the database (check those .template files)
-4. Set up GitHub tokens if you want the real deal
+## Setup
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Clerk account for authentication
+
+### Installation
+
+1. Clone the repository and install dependencies:
+
+```bash
+npm install --legacy-peer-deps
+```
+
+2. Configure environment variables:
+
+```bash
+cp .env.example .env.local
+```
+
+Edit `.env.local` with your configuration:
+
+```env
+# API endpoints
+NEXT_PUBLIC_API_URL=http://localhost:8080
+NEXT_PUBLIC_WS_URL=ws://localhost:8080
+
+# Clerk authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+```
+
+3. Run the development server:
+
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:3000`
+
+## Available Scripts
+
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+```
 
 ## Deployment
 
-Frontend: Vercel (one click, it's already there)  
-Backend: Render.com or Railway (templates included)
+### Vercel
 
-## The Honest Truth
+This project includes `vercel.json` configuration for easy deployment:
+
+```bash
+vercel --prod
+```
+
+Or connect your GitHub repository to Vercel for automatic deployments.
+
+### Environment Variables
+
+Set these in your deployment platform:
+
+- `NEXT_PUBLIC_API_URL` - Backend API URL
+- `NEXT_PUBLIC_WS_URL` - WebSocket URL
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk publishable key
+- `CLERK_SECRET_KEY` - Clerk secret key
+
+## Configuration
+
+### API Integration
+
+The frontend expects a backend API with the following endpoints:
+
+- `GET /api/pipelines/user/{userId}` - Get user's pipelines
+- `GET /api/builds/recent?clerkUserId={userId}` - Recent builds
+- `GET /api/analysis/trends?clerkUserId={userId}` - Success rate trends
+- `GET /api/analysis/summary?pipelineId={id}` - Pipeline analytics
+
+API client is configured in `lib/api.ts`.
+
+### Dashboard Polling
+
+Dashboard data refresh is managed through `DashboardPollingProvider`:
+- Default polling interval: 30 seconds
+- Configurable refresh intervals
+- Manual refresh capability
+
+## Current Status
+
+### Working
+- All UI components and pages
+- Clerk authentication and protected routes
+- Dashboard polling and data refresh
+- Repository selection interface
+- Interactive demo with simulated data
+- Responsive design and dark mode theme
+
+### Requires Backend
+- Real-time data from CI/CD pipelines
+- GitHub webhook integration
+- Pattern analysis data
+- Live build status updates
+- Alert generation
+
+
+
 
 Is this production-ready? Lol no.  
 Does it look production-ready? Absolutely.  
