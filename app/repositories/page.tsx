@@ -4,12 +4,11 @@
 import { useState, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input" // ensure input is imported if needed, otherwise remove
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, GitBranch, CheckCircle, ArrowRight, XCircle } from "lucide-react" // added xcircle
+import { Loader2, GitBranch, CheckCircle, ArrowRight, XCircle } from "lucide-react"
+import { RetroMenuBar } from "@/components/retro-menu-bar"
+import { RetroFooter } from "@/components/retro-footer"
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 interface Repository {
@@ -120,125 +119,156 @@ export default function RepositoriesPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background p-4">
-                <div className="max-w-4xl mx-auto pt-12">
-                    <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin" />
-                        <span className="ml-2">loading repositories...</span>
+            <div className="min-h-screen flex flex-col">
+                <RetroMenuBar />
+                <div className="flex-grow flex items-center justify-center pt-12 pb-12 px-4">
+                    <div className="retro-panel w-full max-w-md">
+                        <div className="panel-content text-center py-12">
+                            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+                            <p className="text-xl">Loading repositories...</p>
+                        </div>
                     </div>
                 </div>
+                <RetroFooter />
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-background p-4">
-            <div className="max-w-4xl mx-auto pt-12">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <GitBranch className="w-5 h-5" />
-                            Select Repositories to Monitor
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            choose which repositories you want to track in your dashboard
-                        </p>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+        <div className="min-h-screen flex flex-col">
+            <RetroMenuBar />
 
-                        {error && !loading && ( // show fetch error only when not loading
-                            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded text-sm flex items-center gap-2">
-                                <XCircle className="w-4 h-4" />
+            <div className="flex-grow pt-12 pb-12 px-4">
+                <div className="max-w-4xl mx-auto">
+                    <div className="retro-panel">
+                        <div className="panel-title-bar">
+                            <GitBranch className="w-5 h-5 mr-2" />
+                            <div className="panel-title">Select Repositories to Monitor</div>
+                        </div>
+                        <div className="panel-content">
+                            <p className="mb-4">
+                                Choose which repositories you want to track in your dashboard
+                            </p>
+
+                            <div className="space-y-4">
+
+                        {error && !loading && (
+                            <div className="border-2 border-[var(--color-fail)] bg-[var(--color-fail)]/10 px-4 py-3 flex items-center gap-2">
+                                <XCircle className="w-4 h-4" style={{ color: 'var(--color-fail)' }} />
                                 <span>{error}</span>
-                                <Button variant="link" size="sm" onClick={fetchRepositories} className="ml-auto p-0 h-auto text-red-800">
-                                    retry
-                                </Button>
+                                <button onClick={fetchRepositories} className="retro-btn ml-auto text-sm px-2 py-1">
+                                    Retry
+                                </button>
                             </div>
                         )}
 
                         {repositories.length === 0 && !error && !loading ? (
                             <div className="text-center py-8">
-                                <p className="text-muted-foreground">no repositories found for your account.</p>
-                                <Button variant="outline" onClick={fetchRepositories} className="mt-2">
-                                    retry fetch
-                                </Button>
+                                <p className="mb-4">No repositories found for your account.</p>
+                                <button onClick={fetchRepositories} className="retro-btn">
+                                    Retry Fetch
+                                </button>
                             </div>
-                        ) : repositories.length > 0 && !error ? ( // only show list if no fetch error
+                        ) : repositories.length > 0 && !error ? (
                             <>
                                 <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
                                     {repositories.map((repo) => (
                                         <div
                                             key={repo.full_name}
-                                            className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                                            className="flex items-center gap-3 p-3 border-2 border-[var(--border-color)] hover:bg-[var(--subtle-bg)] cursor-pointer transition-colors"
                                             onClick={() => toggleRepository(repo.full_name)}
                                         >
                                             <Checkbox
-                                                id={`repo-${repo.full_name}`} // add id for label association
+                                                id={`repo-${repo.full_name}`}
                                                 checked={selectedRepos.includes(repo.full_name)}
                                                 onCheckedChange={() => toggleRepository(repo.full_name)}
                                                 aria-label={`select ${repo.full_name}`}
                                             />
                                             <label htmlFor={`repo-${repo.full_name}`} className="flex-1 cursor-pointer">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="font-medium">{repo.name}</span>
-                                                    {repo.private && <Badge variant="secondary" className="text-xs">private</Badge>}
+                                                    <span className="font-bold">{repo.name}</span>
+                                                    {repo.private && (
+                                                        <span className="px-2 py-0.5 text-xs border-2 border-[var(--border-color)] bg-[var(--subtle-bg)]">
+                                                            PRIVATE
+                                                        </span>
+                                                    )}
                                                     {repo.language && (
-                                                        <Badge variant="outline" className="text-xs">{repo.language}</Badge>
+                                                        <span className="px-2 py-0.5 text-xs border-2 border-[var(--border-color)]">
+                                                            {repo.language}
+                                                        </span>
                                                     )}
                                                 </div>
-                                                <p className="text-sm text-muted-foreground">{repo.full_name}</p>
+                                                <p className="text-sm">{repo.full_name}</p>
                                             </label>
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="pt-4 border-t space-y-3">
-                                    {status !== "idle" && message && ( // show saving status/message
-                                        <div className={`flex items-center space-x-2 p-3 rounded-lg text-sm ${status === "valid" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"
-                                            }`}>
-                                            {status === "valid" ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                                <div className="pt-4 border-t-2 border-[var(--border-color)] space-y-3">
+                                    {status !== "idle" && message && (
+                                        <div className={`flex items-center gap-2 p-3 border-2 ${
+                                            status === "valid"
+                                                ? "border-[var(--color-success)] bg-[var(--color-success)]/10"
+                                                : "border-[var(--color-fail)] bg-[var(--color-fail)]/10"
+                                        }`}>
+                                            {status === "valid" ? (
+                                                <CheckCircle className="w-4 h-4" style={{ color: 'var(--color-success)' }} />
+                                            ) : (
+                                                <XCircle className="w-4 h-4" style={{ color: 'var(--color-fail)' }} />
+                                            )}
                                             <span>{message}</span>
                                         </div>
                                     )}
 
                                     <div className="flex items-center justify-between">
-                                        <div className="text-sm text-muted-foreground">
+                                        <div className="text-sm font-bold">
                                             {selectedRepos.length} of {repositories.length} selected
                                         </div>
 
                                         <div className="flex gap-2">
-                                            <Button variant="outline" onClick={() => router.push("/dashboard")} disabled={saving}>
-                                                skip for now
-                                            </Button>
-                                            <Button
+                                            <button
+                                                onClick={() => router.push("/dashboard")}
+                                                disabled={saving}
+                                                className="retro-btn"
+                                            >
+                                                Skip for now
+                                            </button>
+                                            <button
                                                 onClick={saveSelection}
-                                                disabled={saving || selectedRepos.length === 0 || status === 'valid'} // disable if saving or already valid
+                                                disabled={saving || selectedRepos.length === 0 || status === 'valid'}
+                                                className={`retro-btn retro-btn-primary flex items-center gap-2 ${
+                                                    (saving || selectedRepos.length === 0 || status === 'valid') ? 'opacity-50 cursor-not-allowed' : ''
+                                                }`}
                                             >
                                                 {saving ? (
                                                     <>
-                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        saving...
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                        Saving...
                                                     </>
                                                 ) : status === 'valid' ? (
                                                     <>
-                                                        <CheckCircle className="w-4 h-4 mr-2" />
-                                                        saved
+                                                        <CheckCircle className="w-4 h-4" />
+                                                        Saved
                                                     </>
                                                 ) : (
                                                     <>
-                                                        save selection
-                                                        <ArrowRight className="w-4 h-4 ml-2" />
+                                                        Save Selection
+                                                        <ArrowRight className="w-4 h-4" />
                                                     </>
                                                 )}
-                                            </Button>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
                             </>
-                        ) : null /* handles case where error exists and no repos */}
-                    </CardContent>
-                </Card>
+                        ) : null}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <RetroFooter />
         </div>
     )
 }

@@ -1,19 +1,14 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Space_Grotesk, DM_Sans } from "next/font/google"
+import { VT323 } from "next/font/google"
 import { ClerkProvider } from '@clerk/nextjs'
 import "./globals.css"
 
-const spaceGrotesk = Space_Grotesk({
+const vt323 = VT323({
+  weight: "400",
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-space-grotesk",
-})
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-dm-sans",
+  variable: "--font-retro",
 })
 
 export const metadata: Metadata = {
@@ -34,8 +29,8 @@ export default function RootLayout({
       signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/dashboard"
     >
-      <html lang="en" className={`${spaceGrotesk.variable} ${dmSans.variable} dark`}>
-        <body className="font-sans antialiased">{children}</body>
+      <html lang="en" className={vt323.variable}>
+        <body className="font-sans">{children}</body>
       </html>
     </ClerkProvider>
   )
