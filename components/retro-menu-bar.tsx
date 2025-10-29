@@ -36,10 +36,10 @@ export function RetroMenuBar() {
   const isActive = (path: string) => pathname === path
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-8 bg-[var(--bg-color)] border-b-2 border-[var(--border-color)] flex items-center px-3 z-[1000] transition-all">
+    <div className="fixed top-0 left-0 right-0 h-8 bg-[var(--bg-color)] border-b-2 border-[var(--border-color)] flex items-center px-3 z-[1000] transition-all backdrop-blur-sm">
       {/* Logo */}
       <svg
-        className="w-5 h-5 mr-2 text-[var(--accent-color)]"
+        className="w-5 h-5 mr-2 text-[var(--accent-color)] transition-transform hover:scale-110"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -52,19 +52,25 @@ export function RetroMenuBar() {
       {/* Menu Items */}
       <Link
         href="/"
-        className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-colors ${isActive('/') ? 'font-bold' : ''}`}
+        className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all ${
+          isActive('/') ? 'bg-[var(--fg-color)] text-[var(--bg-color)]' : ''
+        }`}
       >
         StreamCI
       </Link>
       <Link
         href="/dashboard"
-        className="px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-colors"
+        className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all ${
+          isActive('/dashboard') ? 'bg-[var(--fg-color)] text-[var(--bg-color)]' : ''
+        }`}
       >
         Dashboard
       </Link>
       <Link
         href="/demo"
-        className="px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-colors"
+        className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all ${
+          isActive('/demo') ? 'bg-[var(--fg-color)] text-[var(--bg-color)]' : ''
+        }`}
       >
         Demo
       </Link>
@@ -73,13 +79,15 @@ export function RetroMenuBar() {
       <div className="ml-auto flex items-center">
         <Link
           href="/repositories"
-          className="px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-colors font-bold"
+          className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all ${
+            isActive('/repositories') ? 'bg-[var(--fg-color)] text-[var(--bg-color)]' : ''
+          }`}
         >
           Account
         </Link>
         <button
           onClick={toggleTheme}
-          className="p-0.5 ml-2 relative top-[1px] hover:bg-[var(--fg-color)] transition-colors group"
+          className="p-0.5 ml-2 relative top-[1px] hover:bg-[var(--fg-color)] transition-all hover:scale-110 group"
           title="Toggle dark mode"
         >
           {/* Sun Icon */}

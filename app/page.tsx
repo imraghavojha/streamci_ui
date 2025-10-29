@@ -47,14 +47,14 @@ export default function LandingPage() {
             <div className="panel-title">System Features</div>
           </div>
           <div className="panel-content p-5">
-            <ul className="list-disc list-inside space-y-2">
-              <li>Live Build Status: See what's running.</li>
-              <li>Real-time Alerts: Get notified of failures.</li>
-              <li>Clean Build History: Review your logs.</li>
-              <li>Pattern Detection: AI-powered insights.</li>
-              <li>Analytics Dashboard: Track performance.</li>
-              <li>Aesthetic UI: A dashboard you'll actually...</li>
-              <li>...want to look at.</li>
+            <ul className="list-disc list-inside space-y-2 animate-stagger">
+              <li className="hover:translate-x-1 transition-transform">Live Build Status: See what's running.</li>
+              <li className="hover:translate-x-1 transition-transform">Real-time Alerts: Get notified of failures.</li>
+              <li className="hover:translate-x-1 transition-transform">Clean Build History: Review your logs.</li>
+              <li className="hover:translate-x-1 transition-transform">Pattern Detection: AI-powered insights.</li>
+              <li className="hover:translate-x-1 transition-transform">Analytics Dashboard: Track performance.</li>
+              <li className="hover:translate-x-1 transition-transform">Aesthetic UI: A dashboard you'll actually...</li>
+              <li className="hover:translate-x-1 transition-transform">...want to look at.</li>
             </ul>
           </div>
         </div>

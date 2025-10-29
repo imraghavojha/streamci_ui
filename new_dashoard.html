@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamCI Dashboard</title>
+    
+
+<script src="https://cdn.tailwindcss.com"></script>
+    
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    
+
+<style>
+        :root {
+            /* Light Mode (Default) */
+            --bg-color: #fdfaf5; /* Creamy background */
+            --fg-color: #4a4a4a; /* Soft dark gray */
+            --panel-bg: #ffffff;
+            --border-color: #4a4a4a;
+            --shadow-color: #ababab; /* Softer shadow */
+            --subtle-bg: #f0f0f0; /* Subtle stripe bg */
+            --header-bg: #d1d1d1;
+            
+            --accent-color: #3b82f6; /* Brighter, modern blue */
+            --color-success: #22c55e;
+            --color-fail: #ef4444;
+            --color-run: #6366f1;
+            --color-queue: #a855f7;
+            --color-warn: #eab308;
+        }
+
+        .dark {
+            /* Dark Mode */
+            --bg-color: #1e293b; /* slate-800 */
+            --fg-color: #e2e8f0; /* slate-200 */
+            --panel-bg: #334155; /* slate-700 */
+            --border-color: #94a3b8; /* slate-400 */
+            --shadow-color: #000; /* Simple black shadow */
+            --subtle-bg: #475569; /* slate-600 */
+            --header-bg: #475569;
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background-color: var(--bg-color);
+            color: var(--fg-color);
+            font-size: 22px; /* Upscaled pixel font for clarity */
+            line-height: 1.3;
+            /* Subtle dithered background */
+            background-image: linear-gradient(45deg, rgba(0,0,0,0.03) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.03) 75%, rgba(0,0,0,0.03)),
+                              linear-gradient(45deg, rgba(0,0,0,0.03) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.03) 75%, rgba(0,0,0,0.03));
+            background-size: 6px 6px;
+            background-position: 0 0, 3px 3px;
+            user-select: none;
+            -webkit-font-smoothing: none;
+            -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.2s linear, color 0.2s linear;
+        }
+
+        /* Top Menu Bar */
+        .menu-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 32px;
+            background: var(--bg-color);
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            z-index: 1000;
+            flex-shrink: 0;
+            transition: background-color 0.2s linear, border-color 0.2s linear;
+        }
+        .menu-item {
+            padding: 2px 10px;
+            font-size: 20px;
+            letter-spacing: 1px;
+            position: relative;
+            top: 2px; /* Align pixel font better */
+        }
+        .menu-item:hover {
+            background: var(--fg-color);
+            color: var(--bg-color);
+            cursor: default;
+        }
+        .logo-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            color: var(--accent-color);
+        }
+        #theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px;
+            margin-left: 8px;
+            position: relative;
+            top: 1px;
+        }
+        #theme-toggle:hover {
+            background: var(--fg-color);
+        }
+        #theme-toggle:hover svg {
+            fill: var(--bg-color);
+        }
+        .pixel-icon {
+            width: 20px;
+            height: 20px;
+            fill: var(--fg-color);
+        }
+
+        /* Main content "desktop" area */
+        .desktop {
+            flex-grow: 1;
+            padding: 48px 16px 48px; /* Room for menu/footer */
+            width: 100%;
+            margin: 0 auto;
+            max-width: 1400px;
+        }
+
+        /* Bento Panel Style */
+        .retro-panel {
+            background: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            box-shadow: 6px 6px 0px var(--shadow-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* For rounded corners */
+            transition: background-color 0.2s linear, border-color 0.2s linear, box-shadow 0.2s linear;
+        }
+        
+        .panel-title-bar {
+            height: 30px;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            flex-shrink: 0;
+            transition: border-color 0.2s linear;
+        }
+        
+        .panel-title {
+            padding: 0 8px;
+            letter-spacing: 1px;
+            font-weight: bold;
+            font-size: 20px;
+            position: relative;
+            top: 1px;
+            /* Classic stripes, but subtle */
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 3px,
+                var(--subtle-bg) 3px,
+                var(--subtle-bg) 4px
+            );
+        }
+        .panel-content {
+            padding: 12px;
+            flex-grow: 1;
+            overflow-y: auto;
+            /* Custom scrollbar for panels */
+            scrollbar-width: thin;
+            scrollbar-color: var(--fg-color) var(--panel-bg);
+        }
+        .panel-content::-webkit-scrollbar {
+            width: 12px;
+        }
+        .panel-content::-webkit-scrollbar-track {
+            background: var(--border-color);
+            border-left: 2px solid var(--border-color);
+        }
+        .panel-content::-webkit-scrollbar-thumb {
+            background-color: var(--fg-color);
+            border: 2px solid var(--panel-bg);
+        }
+        
+        /* Footer Bar */
+        .footer-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 32px;
+            background: var(--bg-color);
+            border-top: 2px solid var(--border-color);
+            padding: 0 16px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            top: 2px;
+            z-index: 1000;
+            transition: background-color 0.2s linear, border-color 0.2s linear;
+        }
+        
+        /* Dashboard-specific styles */
+        .metric-value {
+            font-size: 48px;
+            font-weight: bold;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .metric-label {
+            font-size: 18px;
+        }
+        .metric-trend {
+            font-size: 18px;
+            margin-left: 8px;
+        }
+        
+        .status-pixel {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            background: var(--color-success); /* Default */
+            margin-right: 8px;
+            position: relative;
+            top: 3px;
+        }
+        
+        .retro-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .retro-table th, .retro-table td {
+            border: 2px solid var(--border-color);
+            padding: 4px 8px;
+            text-align: left;
+            font-size: 18px;
+        }
+        .retro-table th {
+            background-color: var(--header-bg);
+        }
+        
+        .progress-bar-retro {
+            width: 100%;
+            height: 24px;
+            border: 2px solid var(--border-color);
+            background: var(--panel-bg);
+            padding: 2px;
+        }
+        .progress-bar-retro-inner {
+            height: 100%;
+            background-color: var(--color-success);
+        }
+        
+        .trend-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 2px dashed var(--border-color);
+        }
+        .trend-item:last-child {
+            border-bottom: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    
+
+<div class="menu-bar">
+        
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+        </svg>
+        
+        <div class="menu-item" style="font-weight: bold;">StreamCI</div>
+        <div class="menu-item">Pipelines</div>
+        <div class="menu-item">Builds</div>
+        <div class="menu-item">Alerts</div>
+        
+        <!-- Account item pushed to the right -->
+        <div style="margin-left: auto; display: flex; align-items: center;">
+            <div class="menu-item" style="font-weight: bold;">
+                Account
+            </div>
+            <button id="theme-toggle" title="Toggle dark mode">
+                <!-- Sun Icon -->
+                <svg id="icon-sun" class="pixel-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M10 14c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0-6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zM10 0v3h-2v-3h2zm-8 7h3v2h-3v-2zm13 0h3v2h-3v-2zm-5 10v3h-2v-3h2zm-8-3h3v2h-3v-2zm13 0h3v2h-3v-2zm-12.2-8.8l-2.1 2.1 1.4 1.4 2.1-2.1-1.4-1.4zm10.6 10.6l-2.1 2.1 1.4 1.4 2.1-2.1-1.4-1.4zM3.9 3.9l-2.1-2.1 1.4-1.4 2.1 2.1-1.4 1.4zm10.6 10.6l-2.1-2.1 1.4-1.4 2.1 2.1-1.4 1.4z"/></svg>
+                <!-- Moon Icon (hidden by default) -->
+                <svg id="icon-moon" class="pixel-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" style="display: none;"><path d="M10 0c-5.52 0-10 4.48-10 10s4.48 10 10 10c1.85 0 3.58-.51 5.07-1.38-.26-.14-.5-.3-.72-.48-.22-.19-.44-.39-.64-.61-.2-.22-.39-.45-.56-.7-.17-.25-.33-.51-.46-.79-.14-.28-.25-.57-.34-.88-.09-.3-.16-.62-.2-.95-.03-.32-.05-.66-.05-1s.02-.68.05-1 .11-.65.2-.95c.09-.31.2-.6.34-.88.13-.28.29-.54.46-.79.17-.25.36-.48.56-.7.2-.22.42-.42.64-.61.22-.18.46-.34.72-.48a9.91 9.91 0 01-5.07-1.38z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    
+
+<div class="desktop">
+        
+        <!-- Bento Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 h-full">
+            
+            
+
+<div class="retro-panel md:col-span-1 md:row-span-1">
+                <div class="panel-title-bar">
+                    <div class="panel-title">Success Rate</div>
+                </div>
+                <div class="panel-content">
+                    <div class="metric-value" style="color: var(--color-success);">92.8%</div>
+                    <div class="metric-label">Last 24h</div>
+                    <span class="metric-trend" style="color: var(--color-success);">(+2.1%)</span>
+                </div>
+            </div>
+
+            
+
+<div class="retro-panel md:col-span-1 md:row-span-1">
+                <div class="panel-title-bar">
+                    <div class="panel-title">Total Pipelines</div>
+                </div>
+                <div class="panel-content">
+                    <div class="metric-value" style="color: var(--accent-color);">68</div>
+                    <div class="metric-label">Active Projects</div>
+                </div>
+            </div>
+            
+            
+
+<div class="retro-panel md:col-span-1 md:row-span-1">
+                <div class="panel-title-bar">
+                    <div class="panel-title">Active Builds</div>
+                </div>
+                <div class="panel-content">
+                    <div class="metric-value" style="color: var(--color-run);">12</div>
+                    <div class="metric-label">7 Running / 5 Queued</div>
+                </div>
+            </div>
+            
+            
+
+<div class="retro-panel md:col-span-1 md:row-span-1">
+                <div class="panel-title-bar">
+                    <div class="panel-title">Active Alerts</div>
+                </div>
+                <div class="panel-content">
+                    <div class="metric-value" style="color: var(--color-fail);">3</div>
+                    <div class="metric-label">Critical Issues</div>
+                </div>
+            </div>
+
+            
+
+<div class="retro-panel md:col-span-3 md:row-span-2">
+                <div class="panel-title-bar">
+                    <div class="panel-title">Build History</div>
+                </div>
+                <div class="panel-content">
+                    <table class="retro-table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Pipeline</th>
+                                <th>Branch</th>
+                                <th>Commit</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="status-pixel" style="background-color: var(--color-run);"></span>Running</td>
+                                <td>deploy-prod</td>
+                                <td>main</td>
+                                <td>c4a02b1</td>
+                                <td>8m 12s</td>
+                            </tr>
+                            <tr>
+                                <td><span class="status-pixel" style="background-color: var(--color-success);"></span>Success</td>
+                                <td>build-api</td>
+                                <td>feat/new-ep</td>
+                                <td>a1b9f5d</td>
+                                <td>3m 22s</td>
+                            </tr>
+                            <tr>
+                                <td><span class="status-pixel" style="background-color: var(--color-fail);"></span>Failed</td>
+                                <td>run-e2e-tests</td>
+                                <td>main</td>
+                                <td>ff81c00</td>
+                                <td>12m 45s</td>
+                            </tr>
+                            <tr>
+                                <td><span class="status-pixel" style="background-color: var(--color-queue);"></span>Queued</td>
+                                <td>build-staging</td>
+                                <td>dev</td>
+                                <td>2a3f4b5</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td><span class="status-pixel" style="background-color: var(--color-success);"></span>Success</td>
+                                <td>lint-pr-448</td>
+                                <td>feat/login-ui</td>
+                                <td>f7e8a9d</td>
+                                <td>1m 15s</td>
+                            </tr>
+                            <tr>
+                                <td><span class="status-pixel" style="background-color: var(--color-success);"></span>Success</td>
+                                <td>deploy-staging</td>
+                                <td>main</td>
+                                <td>b0c1d2e</td>
+                                GO
+                                <td>6m 02s</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            
+
+<div class="retro-panel md:col-span-1 md:row-span-1">
+                <div class="panel-title-bar">
+                    <div class="panel-title">System Monitor</div>
+                </div>
+                <div class="panel-content">
+                    <p class="font-bold">Build Distribution:</p>
+                    <div class="progress-bar-retro" title="85% Success">
+                        <div class="progress-bar-retro-inner" style="width: 85%;"></div>
+                    </div>
+                    <p class="text-sm">85% Success / 15% Failed</p>
+                    
+                    <p class="font-bold mt-4">Live Status:</p>
+                    <ul class="list-disc list-inside">
+                        <li>Agents: 8/10 Online</li>
+                        <li>Queue Depth: 5</li>
+                        <li>System: Healthy</li>
+                    </ul>
+                </div>
+            </div>
+            
+            
+
+<div class="retro-panel md:col-span-1 md:row-span-1">
+                <div class="panel-title-bar">
+                    <div class="panel-title">Success Trends</div>
+                </div>
+                <div class="panel-content">
+                    <div class="trend-item">
+                        <span>Today</span>
+                        <span style="color: var(--color-success);">92.8%</span>
+                    </div>
+                    <div class="trend-item">
+                        <span>Yesterday</span>
+                        <span style="color: var(--color-success);">90.1%</span>
+                    </div>
+                    <div class="trend-item">
+                        <span>Oct 27</span>
+                        <span style="color: var(--color-warn);">88.2%</span>
+                    </div>
+                    <div class="trend-item">
+                        <span>Oct 26</span>
+                        <span style="color: var(--color-fail);">76.1%</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    
+
+<div class="footer-bar">
+        <span>StreamCI (Hi-Bit)</span>
+        <span id="system-status">READY.</span>
+    </div>
+
+    
+
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const toggleButton = document.getElementById('theme-toggle');
+            const iconSun = document.getElementById('icon-sun');
+            const iconMoon = document.getElementById('icon-moon');
+            const body = document.body;
+
+            // Check for saved theme preference
+            if (localStorage.getItem('theme') === 'dark') {
+                body.classList.add('dark');
+                iconSun.style.display = 'none';
+                iconMoon.style.display = 'block';
+            } else {
+                iconSun.style.display = 'block';
+                iconMoon.style.display = 'none';
+            }
+
+            toggleButton.addEventListener('click', () => {
+                if (body.classList.contains('dark')) {
+                    // Switch to light mode
+                    body.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    iconSun.style.display = 'block';
+                    iconMoon.style.display = 'none';
+                } else {
+                    // Switch to dark mode
+                    body.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    iconSun.style.display = 'none';
+                    iconMoon.style.display = 'block';
+                }
+            });
+            
+            // Just a little flair for the footer
+            const status = document.getElementById('system-status');
+            const statuses = ['READY.', 'OK.', 'SYSTEM NORMAL.', 'AWAITING INPUT...'];
+            let i = 0;
+            setInterval(() => {
+                i = (i + 1) % statuses.length;
+                status.textContent = statuses[i];
+            }, 5000);
+        });
+    </script>
+
+</body>
+</html>
