@@ -1,3 +1,5 @@
+"use client"
+
 import { SignIn } from '@clerk/nextjs'
 import { BarChart3 } from "lucide-react"
 
@@ -26,6 +28,10 @@ export default function SignInPage() {
 
                 {/* clerk sign-in component */}
                 <SignIn
+                    routing="path"
+                    path="/sign-in"
+                    signUpUrl="/sign-up"
+                    afterSignInUrl="/auth-redirect"
                     appearance={{
                         elements: {
                             formButtonPrimary:

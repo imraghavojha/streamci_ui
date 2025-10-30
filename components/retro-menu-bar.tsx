@@ -3,36 +3,14 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
+import { ThemeSwitcher } from './theme-switcher'
+import { useTheme } from '@/contexts/theme-context'
 
 export function RetroMenuBar() {
-  const [isDark, setIsDark] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
-
-  useEffect(() => {
-    // Check for saved theme preference
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme')
-      if (savedTheme === 'dark') {
-        document.documentElement.classList.add('dark')
-        setIsDark(true)
-      }
-    }
-  }, [])
-
-  const toggleTheme = () => {
-    if (typeof window !== 'undefined') {
-      if (isDark) {
-        document.documentElement.classList.remove('dark')
-        localStorage.setItem('theme', 'light')
-        setIsDark(false)
-      } else {
-        document.documentElement.classList.add('dark')
-        localStorage.setItem('theme', 'dark')
-        setIsDark(true)
-      }
-    }
-  }
+  const { darkMode, toggleDarkMode } = useTheme()
 
   const isActive = (path: string) => pathname === path
 
@@ -70,14 +48,7 @@ export function RetroMenuBar() {
       >
         StreamCI
       </a>
-      <Link
-        href="/dashboard"
-        className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all ${
-          isActive('/dashboard') ? 'bg-[var(--fg-color)] text-[var(--bg-color)]' : ''
-        }`}
-      >
-        Dashboard
-      </Link>
+      {/* Public pages - always visible */}
       <Link
         href="/demo"
         className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all ${
@@ -87,24 +58,58 @@ export function RetroMenuBar() {
         Demo
       </Link>
 
-      {/* Right side - Theme toggle and Account */}
-      <div className="ml-auto flex items-center">
+      {/* Protected pages - only for logged-in users */}
+      <SignedIn>
+        <Link
+          href="/dashboard"
+          className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all ${
+            isActive('/dashboard') ? 'bg-[var(--fg-color)] text-[var(--bg-color)]' : ''
+          }`}
+        >
+          Dashboard
+        </Link>
         <Link
           href="/repositories"
           className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all ${
             isActive('/repositories') ? 'bg-[var(--fg-color)] text-[var(--bg-color)]' : ''
           }`}
         >
-          Account
+          Repositories
         </Link>
+      </SignedIn>
+
+      {/* Auth buttons for logged-out users */}
+      <SignedOut>
+        <Link
+          href="/sign-in"
+          className="px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all"
+        >
+          Sign In
+        </Link>
+        <Link
+          href="/sign-up"
+          className="px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all"
+        >
+          Sign Up
+        </Link>
+      </SignedOut>
+
+      {/* Right side - Theme switcher, Dark mode toggle, and User button */}
+      <div className="ml-auto flex items-center gap-1">
+        <ThemeSwitcher />
+        <SignedIn>
+          <div className="relative top-[1px]">
+            <UserButton afterSignOutUrl="/" />
+          </div>
+        </SignedIn>
         <button
-          onClick={toggleTheme}
-          className="p-0.5 ml-2 relative top-[1px] hover:bg-[var(--fg-color)] transition-all hover:scale-110 group"
-          title="Toggle dark mode"
+          onClick={toggleDarkMode}
+          className="p-0.5 relative top-[1px] hover:bg-[var(--fg-color)] transition-all hover:scale-110 group"
+          title="Toggle dark/light mode"
         >
           {/* Sun Icon */}
           <svg
-            className={`w-5 h-5 fill-[var(--fg-color)] group-hover:fill-[var(--bg-color)] ${isDark ? 'hidden' : 'block'}`}
+            className={`w-5 h-5 fill-[var(--fg-color)] group-hover:fill-[var(--bg-color)] ${darkMode === 'dark' ? 'hidden' : 'block'}`}
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
           >
@@ -112,7 +117,7 @@ export function RetroMenuBar() {
           </svg>
           {/* Moon Icon */}
           <svg
-            className={`w-5 h-5 fill-[var(--fg-color)] group-hover:fill-[var(--bg-color)] ${isDark ? 'block' : 'hidden'}`}
+            className={`w-5 h-5 fill-[var(--fg-color)] group-hover:fill-[var(--bg-color)] ${darkMode === 'dark' ? 'block' : 'hidden'}`}
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
           >
