@@ -8,12 +8,5 @@
         "app/**/*.tsx": {
             "maxDuration": 30
         }
-    },
-    "redirects": [
-        {
-            "source": "/",
-            "destination": "/",
-            "permanent": false
-        }
-    ]
+    }
 }
