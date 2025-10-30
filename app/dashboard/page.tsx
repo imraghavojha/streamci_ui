@@ -3,7 +3,7 @@
 import { useUser, UserButton } from "@clerk/nextjs"
 import Link from "next/link"
 import { AnalyticsDashboard } from "@/components/analytics-dashboard"
-import { Loader2, RefreshCw, GitBranch } from "lucide-react"
+import { Loader2, RefreshCw, GitBranch, Settings, Webhook } from "lucide-react"
 import { DashboardChart } from "@/components/dashboard-chart"
 import { LiveBuildStatus } from "@/components/live-build-status"
 import { BuildHistory } from "@/components/build-history"
@@ -50,6 +50,18 @@ function DashboardContent() {
             )}
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/setup">
+              <button className="retro-btn flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                Setup
+              </button>
+            </Link>
+            <Link href="/webhooks">
+              <button className="retro-btn flex items-center gap-2">
+                <Webhook className="w-4 h-4" />
+                Webhooks
+              </button>
+            </Link>
             <Link href="/repositories">
               <button className="retro-btn flex items-center gap-2">
                 <GitBranch className="w-4 h-4" />

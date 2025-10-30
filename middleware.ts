@@ -1,14 +1,19 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
 // define which routes should be protected
-const isProtectedRoute = createRouteMatcher(['/dashboard(.*)'])
+const isProtectedRoute = createRouteMatcher([
+    '/dashboard(.*)',
+    '/webhooks(.*)',
+    '/setup(.*)',
+    '/repositories(.*)'
+])
 
 export default clerkMiddleware(async (auth, req) => {
-    // protect dashboard routes - require authentication
+    // protect authenticated routes - require authentication
     if (isProtectedRoute(req)) {
         await auth.protect()
     }
-    // all other routes (/, /sign-in, /sign-up) are public by default
+    // all other routes (/, /sign-in, /sign-up, /demo) are public by default
 })
 
 export const config = {
