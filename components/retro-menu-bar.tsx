@@ -38,16 +38,18 @@ export function RetroMenuBar() {
   return (
     <div className="fixed top-0 left-0 right-0 h-8 bg-[var(--bg-color)] border-b-2 border-[var(--border-color)] flex items-center px-3 z-[1000] transition-all backdrop-blur-sm">
       {/* Logo */}
-      <svg
-        className="w-5 h-5 mr-2 text-[var(--accent-color)] transition-transform hover:scale-110"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
-      </svg>
+      <Link href="/" className="flex items-center">
+        <svg
+          className="w-5 h-5 mr-2 text-[var(--accent-color)] transition-transform hover:scale-110 cursor-pointer"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+        </svg>
+      </Link>
 
       {/* Menu Items */}
       <Link

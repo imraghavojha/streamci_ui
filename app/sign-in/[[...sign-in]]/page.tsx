@@ -1,17 +1,18 @@
 import { SignIn } from '@clerk/nextjs'
 import { BarChart3 } from "lucide-react"
+import Link from "next/link"
 
 export default function SignInPage() {
     return (
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 {/* streamci branding */}
-                <div className="flex items-center justify-center space-x-2 mb-8">
+                <Link href="/" className="flex items-center justify-center gap-2 mb-8 hover:opacity-80 transition-opacity">
                     <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
                         <BarChart3 className="w-6 h-6 text-primary-foreground" />
                     </div>
                     <span className="text-2xl font-serif font-bold">StreamCI</span>
-                </div>
+                </Link>
 
                 {/* clerk sign-in component */}
                 <SignIn
