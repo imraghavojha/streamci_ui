@@ -80,30 +80,18 @@ export function DashboardPollingProvider({ children }: { children: ReactNode }) 
         if (isLoaded && user?.id) {
             fetchData() // initial load only
 
-            // websocket with better logging
             const ws = new WebSocketService()
 
             ws.connect(
                 (update) => {
-                    console.log('🔔 WebSocket update received:', update)
                     fetchData() // only fetch on actual websocket events
                 },
                 (error) => {
-                    console.error('❌ WebSocket error:', error)
+                    // WebSocket error handled
                 }
             )
 
-            // check if connected after 3 seconds
-            setTimeout(() => {
-                if (ws.isConnected()) {
-                    console.log('✅ WebSocket successfully connected')
-                } else {
-                    console.warn('⚠️ WebSocket not connected after 3 seconds')
-                }
-            }, 3000)
-
             return () => {
-                console.log('🔌 Disconnecting WebSocket...')
                 ws.disconnect()
             }
         }

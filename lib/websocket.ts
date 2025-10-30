@@ -23,7 +23,6 @@ export class WebSocketService {
 
     connect(onMessage?: (message: WebSocketMessage) => void, onError?: (error: any) => void): void {
         if (this.connected) {
-            console.log('websocket already connected')
             return
         }
 
@@ -36,29 +35,25 @@ export class WebSocketService {
             this.client = new Client({
                 webSocketFactory: () => new SockJS(`${API_URL}/ws/dashboard`),
                 connectHeaders: {},
-                debug: (str) => {
-                    console.log('websocket debug:', str)
-                },
+                debug: () => {},
                 reconnectDelay: this.reconnectDelay,
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,
             })
 
             this.client.onConnect = (frame) => {
-                console.log('✅ websocket connected successfully')
                 this.connected = true
                 this.reconnectAttempts = 0
 
                 this.client?.subscribe('/topic/dashboard', (message) => {
                     try {
                         const data = JSON.parse(message.body)
-                        console.log('📡 websocket message received:', data.type)
 
                         if (this.onMessageCallback) {
                             this.onMessageCallback(data)
                         }
                     } catch (error) {
-                        console.error('failed to parse websocket message:', error)
+                        console.error('Failed to parse websocket message:', error)
                     }
                 })
 
@@ -69,7 +64,7 @@ export class WebSocketService {
             }
 
             this.client.onStompError = (frame) => {
-                console.error('❌ websocket stomp error:', frame.headers['message'])
+                console.error('WebSocket STOMP error:', frame.headers['message'])
                 this.connected = false
 
                 if (this.onErrorCallback) {
@@ -80,7 +75,7 @@ export class WebSocketService {
             }
 
             this.client.onWebSocketError = (error) => {
-                console.error('❌ websocket error:', error)
+                console.error('WebSocket error:', error)
                 this.connected = false
 
                 if (this.onErrorCallback) {
@@ -89,14 +84,13 @@ export class WebSocketService {
             }
 
             this.client.onDisconnect = () => {
-                console.log('📡 websocket disconnected')
                 this.connected = false
             }
 
             this.client.activate()
 
         } catch (error) {
-            console.error('failed to setup websocket:', error)
+            console.error('Failed to setup websocket:', error)
             if (this.onErrorCallback) {
                 this.onErrorCallback(error)
             }
@@ -105,7 +99,6 @@ export class WebSocketService {
 
     disconnect(): void {
         if (this.client && this.connected) {
-            console.log('disconnecting websocket...')
             this.client.deactivate()
             this.connected = false
         }
@@ -113,14 +106,12 @@ export class WebSocketService {
 
     private handleReconnect(): void {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.error('max websocket reconnect attempts reached')
+            console.error('Max websocket reconnect attempts reached')
             return
         }
 
         this.reconnectAttempts++
         const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
-
-        console.log(`attempting websocket reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`)
 
         setTimeout(() => {
             if (!this.connected) {
@@ -149,7 +140,7 @@ export class WebSocketService {
                     const data = JSON.parse(message.body)
                     callback(data)
                 } catch (error) {
-                    console.error('failed to parse pipeline message:', error)
+                    console.error('Failed to parse pipeline message:', error)
                 }
             })
         }
