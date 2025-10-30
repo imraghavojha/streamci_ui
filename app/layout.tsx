@@ -26,8 +26,6 @@ export default function RootLayout({
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!}
-      signInFallbackRedirectUrl="/dashboard"
-      signUpFallbackRedirectUrl="/dashboard"
     >
       <html lang="en" className={vt323.variable}>
         <body className="font-sans">{children}</body>

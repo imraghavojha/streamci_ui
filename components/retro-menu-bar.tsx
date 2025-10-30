@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 export function RetroMenuBar() {
   const [isDark, setIsDark] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
 
   useEffect(() => {
     // Check for saved theme preference
@@ -35,12 +36,20 @@ export function RetroMenuBar() {
 
   const isActive = (path: string) => pathname === path
 
+  const navigateToHome = (e: React.MouseEvent) => {
+    e.preventDefault()
+    // Force navigation to homepage, bypassing any Clerk redirects
+    if (typeof window !== 'undefined') {
+      window.location.href = '/'
+    }
+  }
+
   return (
     <div className="fixed top-0 left-0 right-0 h-8 bg-[var(--bg-color)] border-b-2 border-[var(--border-color)] flex items-center px-3 z-[1000] transition-all backdrop-blur-sm">
       {/* Logo */}
-      <Link href="/" className="flex items-center">
+      <a href="/" onClick={navigateToHome} className="flex items-center cursor-pointer">
         <svg
-          className="w-5 h-5 mr-2 text-[var(--accent-color)] transition-transform hover:scale-110 cursor-pointer"
+          className="w-5 h-5 mr-2 text-[var(--accent-color)] transition-transform hover:scale-110"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -49,17 +58,18 @@ export function RetroMenuBar() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
         </svg>
-      </Link>
+      </a>
 
       {/* Menu Items */}
-      <Link
+      <a
         href="/"
-        className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all ${
+        onClick={navigateToHome}
+        className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all cursor-pointer ${
           isActive('/') ? 'bg-[var(--fg-color)] text-[var(--bg-color)]' : ''
         }`}
       >
         StreamCI
-      </Link>
+      </a>
       <Link
         href="/dashboard"
         className={`px-2.5 py-0.5 text-[20px] tracking-wide relative top-[2px] hover:bg-[var(--fg-color)] hover:text-[var(--bg-color)] transition-all ${
